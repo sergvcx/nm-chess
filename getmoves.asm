@@ -23,8 +23,8 @@
 
 begin ".text"
 
-global getMoveSquares:label;
-<getMoveSquares>
+global _getMoveSquares:label;
+<_getMoveSquares>
 	ar5 = ar7 - 2	with gr7=false;
 	push ar0,gr0	with gr7++;
 	push ar1,gr1	with gr7++;
