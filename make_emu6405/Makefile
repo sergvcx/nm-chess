@@ -17,8 +17,9 @@ LIB_DIRS = -L"$(NMPP)/lib"  -L$(NMPP)/app/deps/nm_io/lib
 LIBS     = nm_io_dummy.lib nmpp-nmc3d.lib libint05.lib  
 TARGET   = main.abs
 CFG      = emu6405.cfg
-SRC_CPP  = $(wildcard $(addsuffix /*.cpp,..))
-SRC_ASM  = $(wildcard $(addsuffix /*.asm,..))
+SRC_DIRS  = .. ../src/nm ../src/common
+SRC_CPP  = $(wildcard $(addsuffix /*.cpp,$(SRC_DIRS)))
+SRC_ASM  = $(wildcard $(addsuffix /*.asm,$(SRC_DIRS)))
 
 
 VPATH    = $(subst -L,,$(LIB_DIRS)) $(NEURO)/lib

@@ -19,7 +19,7 @@ endif
 
 #--------------  target & input dirs -------------------
 PROJECT          =main
-SRC_DIRS         = .. 
+SRC_DIRS         = .. ../src/common ../src/pc
 INC_DIRS         =-I"$(NMPP)/include"
 LIB_DIRS         =-L"$(NMPP)/lib"  
 #--------------  RELEASE/ALL config -------------------

@@ -23,8 +23,8 @@
 
 begin ".text"
 
-global _getMoveSquares:label;
-<_getMoveSquares>
+global _nmppsBitReplace:label;
+<_nmppsBitReplace>
 	ar5 = ar7 - 2	with gr7=false;
 	push ar0,gr0	with gr7++;
 	push ar1,gr1	with gr7++;
@@ -32,35 +32,31 @@ global _getMoveSquares:label;
 	push ar6,gr6	with gr1=gr7;
 
 	ar0 = [--ar5];		//	nm64* srcBits
-	ar1 = [--ar5];		//	nm64* replace table
+	ar1 = [--ar5];		//	nm64* replace table wfifo-format
 	ar6 = [--ar5];		//	nm64* dstBits
-
+	gr7 = [--ar5];		//  int   size
 	nb1 = 0ffffffffh;
 	sb  = 0aaaaaaaah;
+	gr0 = ar0;
+	<next>
+		rep 32 wfifo= [ar1++],ftw,wtw;
+		rep 1  data,ram  = [ar0++] with vsum ,data ,0;
+		
+		rep 32 wfifo= [ar1++],ftw,wtw;
 	
-	rep 1 ram  = [ar1];
-	rep 1 data = [ar0] with 0 - data;
-	rep 1 data = [ar0] with data and afifo;
-	rep 1 [ar6++]=afifo;
+		ar0 = gr0 with gr7--;
+	if <>0 delayed goto next;		
+		rep 1       with vsum ,shift ram,afifo;
+		rep 1 [ar6++]=afifo;
 	
-	
-	//figtt-cells:
-	//not x & (x+1) - right bit
-	
-	
-	// free-cells:
-	//not x & (x-1)
-	//not (x or -x)
-	//(x & -x) -1
-	
-	
-	
+		
 	pop ar6,gr6;
 	pop ar5,gr5;
 	pop ar1,gr1;
 	pop ar0,gr0;
 return;
 .wait;
+
 
 
 end ".text";
