@@ -97,9 +97,11 @@ extern "C" {
 }
 	
 void inverseOrder(int* fwdOrder, int* invOrder)	{
+	nmppsSet_32s(invOrder,-1,64);
 	for(int i=0; i<64; i++){
 		invOrder[fwdOrder[i]]=i;
 	}
+	
 }
 /*
 	int newOrderFwd[64]={ 	01,02,03,04,05,06,07,8,9,
@@ -110,8 +112,15 @@ void inverseOrder(int* fwdOrder, int* invOrder)	{
 						50,51,52,53,54,55,56,57,58,59,
 						60,61,62,63};
 */
-int newOrderFwd[64]={ 	00,01,02,03,04,05,06,07,
-8,16,32,40,48,52,60 };
+int newOrderFwd[64]={ 	-1,01,02,03,04,05,06,07,
+						-1, 8,16,24,32,40,48,56,
+						-1,-1,-1,-1,-1,-1,-1,-1,
+						-1,-1,-1,-1,-1,-1,-1,-1,
+						-1,-1,-1,-1,-1,-1,-1,-1,
+						-1,-1,-1,-1,-1,-1,-1,-1,
+						-1,-1,-1,-1,-1,-1,-1,-1,
+						-1,-1,-1,-1,-1,-1,-1,-1
+};
 
 	int newOrderInv[64];
 int main()
@@ -127,6 +136,13 @@ int main()
 	blackPieces[0][6]=PAWN;
 	blackPieces[0][5]=PAWN;
 	blackPieces[0][4]=PAWN;
+	blackPieces[0][3]=PAWN;
+	blackPieces[0][2]=PAWN;
+	blackPieces[0][1]=PAWN;
+	blackPieces[0][0]=PAWN;
+	blackPieces[1][0]=PAWN;
+	blackPieces[2][0]=PAWN;
+	blackPieces[3][0]=PAWN;
 	blackPieces[4][0]=PAWN;
 	blackPieces[5][0]=PAWN;
 	blackPieces[6][0]=PAWN;
@@ -161,12 +177,12 @@ int main()
 	nmppsInitBitReplace(newOrderInv,replacementInv);
 	nmppsBitReplace(&allTakeBits,replacementFwd,&allTakeBitsT,1);
 	getMoveBits(&allTakeBitsT,&takeBitsT,&moveBitsT);
-	nmppsBitReplace(&allTakeBitsT,replacementInv,&takeBits,1);
+	nmppsBitReplace(&takeBitsT,replacementInv,&takeBits,1);
 	nmppsBitReplace(&moveBitsT,replacementInv,&moveBits,1);
 //	detransposeSquares(&takeSquares,blackPieces[pos],pos);
 	
 	
 	
 		  
- 	return 1;
+ 	return takeBits;
 }

@@ -23,8 +23,8 @@
 
 begin ".text"
 
-global _getMoveSquares:label;
-<_getMoveSquares>
+global _getMoveBits:label;
+<_getMoveBits>
 	ar5 = ar7 - 2	with gr7=false;
 	push ar0,gr0	with gr7++;
 	push ar1,gr1	with gr7++;
@@ -36,8 +36,9 @@ global _getMoveSquares:label;
 	ar6 = [--ar5];		//	nm64* moveBits
 
 	nb1 = 0;
-	rep 1 data,ram  = [ar0] with data + 1;
-	rep 1 	 with afifo and not ram;
+	nb1 = 080808080h;
+	rep 1 data,ram  = [ar0] with 0-data;
+	rep 1 	 with afifo and ram;
 	rep 1 [ar1++]=afifo;
 	
 	rep 1 with ram - 1 ;

@@ -10,8 +10,8 @@ void getMoveBits(chessbits* bitsT, chessbits* takeBitsT, chessbits* moveBitsT){
 	nm8u* moveBitsT8=(nm8u*)moveBitsT;
 
 	for (int i=0; i<8; i++){
-		takeBitsT8[i]=(bitsT8[8]+1)&(!bitsT8);
-		moveBitsT8[i]=(bitsT8[8]-1)&(!bitsT8);
+		takeBitsT8[i]=bitsT8[i]&(-bitsT8[i]);
+		moveBitsT8[i]=(bitsT8[i]-1)&(~bitsT8[i]);
 	}
 	
 }
