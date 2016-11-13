@@ -122,10 +122,53 @@ int newOrderFwd[64]={ 	-1,01,02,03,04,05,06,07,
 						-1,-1,-1,-1,-1,-1,-1,-1
 };
 
-	int newOrderInv[64];
+void initOrderFwd(int piece, int Y, int X, int* order)
+{
+	//          ^(y)
+	//          |
+	//          |
+	// (x)<-----'
+	nmppsSet_32s(order,-1,64);
+	switch (piece)	{
+		case CASTLE :
+			for(int x=X+1,i=0; x<8;  x++,i++){
+				order[8*0+i]=Y*8+x;
+			}
+			for(int y=Y+1,i=0; y<8;  y++,i++){
+				order[8*1+i]=y*8+X;
+			}
+			for(int x=X-1,i=0; x>=0; x--,i++){
+				order[8*2+i]=Y*8+x;
+			}
+			for(int y=Y-1,i=0; y>=0; y--,i++){
+				order[8*3+i]=y*8+X;
+			}
+
+			break;
+		case BISHOP:
+			break;
+	}
+}
+
+int newOrderInv[64];
+void showBits(chessbits bits, char *text)
+{
+	printf("%s\n",text);
+	for(int y=7;y>=0;y--){
+		for(int x=7; x>=0; x--){
+			int bit=nmppsGet_1((nm1*)&bits,y*8+x);
+			if (bit)
+				printf("*");
+			else 
+				printf("o");
+		}
+		printf("\n");
+	}
+
+}
 int main()
 {
-	inverseOrder(newOrderFwd,newOrderInv);
+	
 
 	int   blackPieces[8][8];
 	int	  whitePieces[8][8];
@@ -134,17 +177,17 @@ int main()
 	
 	blackPieces[0][7]=PAWN;
 	blackPieces[0][6]=PAWN;
-	blackPieces[0][5]=PAWN;
+	blackPieces[1][5]=PAWN;
 	blackPieces[0][4]=PAWN;
 	blackPieces[0][3]=PAWN;
-	blackPieces[0][2]=PAWN;
-	blackPieces[0][1]=PAWN;
+	//blackPieces[0][2]=PAWN;
+	//blackPieces[0][1]=PAWN;
 	blackPieces[0][0]=PAWN;
-	blackPieces[1][0]=PAWN;
-	blackPieces[2][0]=PAWN;
+	//blackPieces[1][0]=PAWN;
+	//blackPieces[2][0]=PAWN;
 	blackPieces[3][0]=PAWN;
 	blackPieces[4][0]=PAWN;
-	blackPieces[5][0]=PAWN;
+	//blackPieces[5][0]=PAWN;
 	blackPieces[6][0]=PAWN;
 	blackPieces[7][0]=PAWN;
 	
@@ -153,13 +196,13 @@ int main()
 	pieces2chessbits((int*)blackPieces,&blackBits);
 	pieces2chessbits((int*)whitePieces,&whiteBits);
 	chessbits allBits=blackBits|whiteBits;
-	
+	showBits(allBits,"\nallBits");
 	int piece=KING;
 	int pos=63; 
 	
 	initPureMoves(pureMovesBase);
 	
-	chessbits pureMoves=pureMovesBase[WHITE][CASTLE][0];
+	chessbits pureMoves=pureMovesBase[WHITE][CASTLE][8*1+1];
 	//return (pureMoves);
 	chessbits takeSquares,moveSquares;
 	
@@ -173,12 +216,18 @@ int main()
 
 	nm64u replacementFwd[64];
 	nm64u replacementInv[64];
+
+	initOrderFwd(CASTLE,1,1,newOrderFwd);
+	inverseOrder(newOrderFwd,newOrderInv);
 	nmppsInitBitReplace(newOrderFwd,replacementFwd);
 	nmppsInitBitReplace(newOrderInv,replacementInv);
 	nmppsBitReplace(&allTakeBits,replacementFwd,&allTakeBitsT,1);
+	showBits(allTakeBits,"\nallTakeBits");
 	getMoveBits(&allTakeBitsT,&takeBitsT,&moveBitsT);
 	nmppsBitReplace(&takeBitsT,replacementInv,&takeBits,1);
 	nmppsBitReplace(&moveBitsT,replacementInv,&moveBits,1);
+	showBits(takeBits,"\ntakeBits");
+	showBits(moveBits,"\nmoveBits");
 //	detransposeSquares(&takeSquares,blackPieces[pos],pos);
 	
 	
