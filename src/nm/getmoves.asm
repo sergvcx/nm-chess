@@ -35,8 +35,9 @@ global _getMoveBits:label;
 	ar1 = [--ar5];		//	nm64* takeBits
 	ar6 = [--ar5];		//	nm64* moveBits
 
-	nb1 = 0;
+	
 	nb1 = 080808080h;
+	wtw;
 	rep 1 data,ram  = [ar0] with 0-data;
 	rep 1 	 with afifo and ram;
 	rep 1 [ar1++]=afifo;

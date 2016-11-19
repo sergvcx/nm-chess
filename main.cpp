@@ -6,11 +6,11 @@
 
 typedef unsigned long long chessbits;
 
-struct  {
+struct  Piece{
+	int color;
 	int type;
 	int pos;
-	int color;
-} Piece;
+};
 
 extern "C" {
 	void transposeSquares(chessbits* squares, int type, int pos);
@@ -34,7 +34,9 @@ extern "C" {
 
 
 
-chessbits pureMovesBase[2][6][8*8];
+chessbits  pureMovesBase[2][6][8*8];
+nm64u replacementFwdBase[2][6][8*8][64];
+nm64u replacementInvBase[2][6][8*8][64];
 
 void nmppsCnv_32s1s(nm32s* src, nm1* dst, int size){
 	for(int i=0; i<size; i++){
@@ -44,7 +46,7 @@ void nmppsCnv_32s1s(nm32s* src, nm1* dst, int size){
 
 #define ONBOARD(y,dy,x,dx)  ((y+dy>=0) && (y+dy<8) && (x+dx>=0) && (x+dx<8))
 
-void initPureMoves(chessbits pureMoves[2][6][8*8]){
+void initPureMovesBase(chessbits pureMoves[2][6][8*8]){
 	// CASTLE
 	int board[8][8];
 	for(int x=0; x<8; x++){
@@ -79,6 +81,8 @@ void initPureMoves(chessbits pureMoves[2][6][8*8]){
 	}
 }
 
+
+
 void pieces2chessbits(int* pieces, chessbits* bits){
 	for (int i=0; i<64; i++){
 		if (pieces[i])
@@ -99,7 +103,8 @@ extern "C" {
 void inverseOrder(int* fwdOrder, int* invOrder)	{
 	nmppsSet_32s(invOrder,-1,64);
 	for(int i=0; i<64; i++){
-		invOrder[fwdOrder[i]]=i;
+		if (fwdOrder[i]>=0)
+			invOrder[fwdOrder[i]]=i;
 	}
 	
 }
@@ -147,25 +152,76 @@ void initOrderFwd(int piece, int Y, int X, int* order)
 			break;
 		case BISHOP:
 			break;
+		default:
+			for(int i=0; i<64; i++)
+				order[i]=i;
+			break;
+	}
+}
+
+
+void initReplacementBase(nm64u replacementFwdBase[2][6][8*8][64], nm64u replacementInvBase[2][6][8*8][64])
+{
+	int orderFwd[64];
+	int orderInv[64];
+	for(int pieceColor=0; pieceColor<2; pieceColor++){
+		for(int pieceType=0; pieceType<6; pieceType++){
+			for(int y=0; y<8; y++){
+				for(int x=0; x<8; x++){
+					initOrderFwd(pieceType,y,x,orderFwd);
+					inverseOrder(orderFwd,orderInv);
+					nmppsInitBitReplace(orderFwd,replacementFwdBase[pieceColor][pieceType][y*8+x]);
+					nmppsInitBitReplace(orderInv,replacementInvBase[pieceColor][pieceType][y*8+x]);
+				}
+			}
+		}
 	}
 }
 
 int newOrderInv[64];
-void showBits(chessbits bits, char *text)
+void showBits(chessbits bits, char *text, char symbol='*')
 {
 	printf("%s\n",text);
 	for(int y=7;y>=0;y--){
 		for(int x=7; x>=0; x--){
 			int bit=nmppsGet_1((nm1*)&bits,y*8+x);
 			if (bit)
-				printf("*");
+				printf("%c",symbol);
 			else 
-				printf("o");
+				printf(".");
 		}
 		printf("\n");
 	}
 
 }
+
+
+void whatCanPieceDo(Piece* piece , chessbits allBits,  chessbits whiteBits,  chessbits blackBits, chessbits* takeBits, chessbits* moveBits)
+{
+	chessbits& pureMoves=pureMovesBase[piece->color][piece->type][piece->pos];
+	chessbits allTakeBits=allBits&pureMoves;
+	chessbits allTakeBitsT;
+	chessbits takeBitsT;
+	chessbits moveBitsT;
+
+	nmppsBitReplace(&allTakeBits,replacementFwdBase[piece->color][piece->type][piece->pos],&allTakeBitsT,1);
+	//showBits(allTakeBits,"\nallTakeBits");
+	getMoveBits(&allTakeBitsT,&takeBitsT,&moveBitsT);
+	nmppsBitReplace(&moveBitsT,replacementInvBase[piece->color][piece->type][piece->pos],moveBits,1);
+	nmppsBitReplace(&takeBitsT,replacementInvBase[piece->color][piece->type][piece->pos],takeBits,1);
+	if (piece->color==WHITE)
+		(*takeBits)&=blackBits;
+	else 
+		(*takeBits)&=whiteBits;
+	
+	//showBits(*takeBits,"\nallTakeBits");
+	//showBits(*moveBits,"\nallMoveBits");
+
+	
+
+	
+}
+
 int main()
 {
 	
@@ -175,6 +231,8 @@ int main()
 	nmppsSet_32s((nm32s*)blackPieces,0,64);
 	nmppsSet_32s((nm32s*)whitePieces,0,64);
 	
+	whitePieces[1][0]=PAWN;
+
 	blackPieces[0][7]=PAWN;
 	blackPieces[0][6]=PAWN;
 	blackPieces[1][5]=PAWN;
@@ -196,13 +254,15 @@ int main()
 	pieces2chessbits((int*)blackPieces,&blackBits);
 	pieces2chessbits((int*)whitePieces,&whiteBits);
 	chessbits allBits=blackBits|whiteBits;
-	showBits(allBits,"\nallBits");
+	showBits(allBits,"\nallBits",'o');
 	int piece=KING;
 	int pos=63; 
 	
-	initPureMoves(pureMovesBase);
+	initPureMovesBase(pureMovesBase);
+	initReplacementBase(replacementFwdBase, replacementInvBase);
 	
-	chessbits pureMoves=pureMovesBase[WHITE][CASTLE][8*1+1];
+	
+	chessbits pureMoves=pureMovesBase[WHITE][CASTLE][8*0+0];
 	//return (pureMoves);
 	chessbits takeSquares,moveSquares;
 	
@@ -214,10 +274,18 @@ int main()
 	chessbits takeBits;
 	chessbits moveBits;
 
+	Piece fig={WHITE,CASTLE,10};
+	whatCanPieceDo( &fig, allBits,  whiteBits,  blackBits, &takeBits, &moveBits);
+
+	showBits(whiteBits,"\nwhiteBits",'w');
+	showBits(blackBits,"\nblackBits",'b');
+	showBits(takeBits,"\ntakeBits",'*');
+	showBits(moveBits,"\nmoveBits",'#');
+
 	nm64u replacementFwd[64];
 	nm64u replacementInv[64];
 
-	initOrderFwd(CASTLE,1,1,newOrderFwd);
+	initOrderFwd(CASTLE,0,0,newOrderFwd);
 	inverseOrder(newOrderFwd,newOrderInv);
 	nmppsInitBitReplace(newOrderFwd,replacementFwd);
 	nmppsInitBitReplace(newOrderInv,replacementInv);
