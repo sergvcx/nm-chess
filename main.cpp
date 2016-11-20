@@ -1,8 +1,9 @@
 #include "nmpp.h"
 #include <time.h>
 #include <stdio.h>
+#include <crtdbg.h>
 
-
+#define MAX_DEPTH 3
 
 typedef unsigned long long chessbits;
 
@@ -11,6 +12,27 @@ struct  Piece{
 	int type;
 	int pos;
 };
+
+struct ChessState {
+	int whiteMoves;
+	int blackMoves;
+	int whiteForce;
+	int blackForce;
+	int ratio;
+	int lastColor;
+	bool completed;
+	bool operator <=(ChessState & state) {
+		//int curRatio=whiteForce-blackForce;
+		//int parRatio=state.whiteForce-state.blackForce;
+		return ratio<=state.ratio;
+	}
+	bool operator >=(ChessState & state) {
+		//int curRatio=whiteForce-blackForce;
+		//int parRatio=state.whiteForce-state.blackForce;
+		return ratio>=state.ratio;
+	}
+};
+
 
 extern "C" {
 	void transposeSquares(chessbits* squares, int type, int pos);
@@ -21,22 +43,26 @@ extern "C" {
 
 
 
-#define QUEEN 1
-#define KING 2
+#define QUEEN  1
+#define KING   2
 #define BISHOP 3
-#define CASTLE 4
+#define ROOK   4
 #define KNIGHT 5
-#define ROOK 6
-#define PAWN 7
+#define PAWN   6
 
 #define WHITE 0
 #define BLACK 1
 
-
+char whiteLook[7]={'.','Q','W','B','R','K','P'};
+char blackLook[7]={'.','q','w','b','r','k','p'};
 
 chessbits  pureMovesBase[2][6][8*8];
 nm64u replacementFwdBase[2][6][8*8][64];
 nm64u replacementInvBase[2][6][8*8][64];
+struct {
+	int from;
+	int to;
+} bestMoves[10];
 
 void nmppsCnv_32s1s(nm32s* src, nm1* dst, int size){
 	for(int i=0; i<size; i++){
@@ -56,8 +82,8 @@ void initPureMovesBase(chessbits pureMoves[2][6][8*8]){
 				board[y][move]=-1;
 				board[move][x]=-1;
 			}
-			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[WHITE][CASTLE][y*8+x],64);
-			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[BLACK][CASTLE][y*8+x],64);
+			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[WHITE][ROOK][y*8+x],64);
+			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[BLACK][ROOK][y*8+x],64);
 		}
 	}
 	// BISHOP
@@ -108,24 +134,7 @@ void inverseOrder(int* fwdOrder, int* invOrder)	{
 	}
 	
 }
-/*
-	int newOrderFwd[64]={ 	01,02,03,04,05,06,07,8,9,
-						10,11,12,13,14,15,16,17,18,19,
-						20,21,22,23,24,25,26,27,28,29,
-						30,31,32,33,34,35,36,37,38,39,
-						40,41,42,43,44,45,46,47,48,49,
-						50,51,52,53,54,55,56,57,58,59,
-						60,61,62,63};
-*/
-int newOrderFwd[64]={ 	-1,01,02,03,04,05,06,07,
-						-1, 8,16,24,32,40,48,56,
-						-1,-1,-1,-1,-1,-1,-1,-1,
-						-1,-1,-1,-1,-1,-1,-1,-1,
-						-1,-1,-1,-1,-1,-1,-1,-1,
-						-1,-1,-1,-1,-1,-1,-1,-1,
-						-1,-1,-1,-1,-1,-1,-1,-1,
-						-1,-1,-1,-1,-1,-1,-1,-1
-};
+
 
 void initOrderFwd(int piece, int Y, int X, int* order)
 {
@@ -135,7 +144,7 @@ void initOrderFwd(int piece, int Y, int X, int* order)
 	// (x)<-----'
 	nmppsSet_32s(order,-1,64);
 	switch (piece)	{
-		case CASTLE :
+		case ROOK :
 			for(int x=X+1,i=0; x<8;  x++,i++){
 				order[8*0+i]=Y*8+x;
 			}
@@ -151,6 +160,19 @@ void initOrderFwd(int piece, int Y, int X, int* order)
 
 			break;
 		case BISHOP:
+			for(int x=X+1,y=Y+1,i=0; x<8&y<8 ;  x++,y++,i++){
+				order[8*0+i]=y*8+x;
+			}
+			for(int x=X+1,y=Y-1,i=0; x<8&y>=0;  x++,y--,i++){
+				order[8*1+i]=y*8+x;
+			}
+			for(int x=X-1,y=Y+1,i=0; x>=0&y<8;  x--,y++,i++){
+				order[8*2+i]=y*8+x;
+			}
+			for(int x=X-1,y=Y-1,i=0; x>=0&y>=0; x--,y--,i++){
+				order[8*3+i]=y*8+x;
+			}
+		
 			break;
 		default:
 			for(int i=0; i<64; i++)
@@ -192,7 +214,40 @@ void showBits(chessbits bits, char *text, char symbol='*')
 		}
 		printf("\n");
 	}
+}
 
+void showChess(int* white, int* black, char* text)
+{
+	char w,b;
+	printf("%s\n",text);
+	for(int y=7;y>=0;y--){
+		for(int x=7; x>=0; x--){
+			if  (w=white[y*8+x])
+				printf("%c",whiteLook[w]);
+			else
+				printf("%c",blackLook[black[y*8+x]]);
+		}
+		printf("\n");
+	}
+
+}
+void showBitsWB(chessbits whiteBits, chessbits blackBits, char *text)
+{
+	printf("%s\n",text);
+	for(int y=7;y>=0;y--){
+		for(int x=7; x>=0; x--){
+			int whiteBit=nmppsGet_1((nm1*)&whiteBits,y*8+x);
+			int blackBit=nmppsGet_1((nm1*)&blackBits,y*8+x);
+			_ASSERTE( (whiteBits & blackBits)==0);
+			if (whiteBit)
+				printf("%c",'w');
+			else if (blackBit)
+				printf("%c",'b');
+			else
+				printf(".");
+		}
+		printf("\n");
+	}
 }
 
 
@@ -205,7 +260,6 @@ void whatCanPieceDo(Piece* piece , chessbits allBits,  chessbits whiteBits,  che
 	chessbits moveBitsT;
 
 	nmppsBitReplace(&allTakeBits,replacementFwdBase[piece->color][piece->type][piece->pos],&allTakeBitsT,1);
-	//showBits(allTakeBits,"\nallTakeBits");
 	getMoveBits(&allTakeBitsT,&takeBitsT,&moveBitsT);
 	nmppsBitReplace(&moveBitsT,replacementInvBase[piece->color][piece->type][piece->pos],moveBits,1);
 	nmppsBitReplace(&takeBitsT,replacementInvBase[piece->color][piece->type][piece->pos],takeBits,1);
@@ -213,92 +267,290 @@ void whatCanPieceDo(Piece* piece , chessbits allBits,  chessbits whiteBits,  che
 		(*takeBits)&=blackBits;
 	else 
 		(*takeBits)&=whiteBits;
-	
-	//showBits(*takeBits,"\nallTakeBits");
-	//showBits(*moveBits,"\nallMoveBits");
+}
 
+int countBits(chessbits bits)
+{
+	int count=0;
+	for (int i=0; i<64; i++){
+		count+=(bits&1);
+		bits>>=1;
+	}
+	return count;
+}
+
+int estimatePosition(chessbits takeBits, chessbits moveBits)
+{
+
+	return 1;
+}
+
+int   blackPieces[64];//8][8];
+int	  whitePieces[64];//8][8];
+
+ChessState whiteMove();
+
+//ChessState chessState={0,0,0,0,-1,false};
+int moveDepth=0;
+ChessState blackMove()
+{
+	ChessState minChessState={0,0,0,0,999,-1,false};
+	moveDepth++;
+	chessbits blackBits;
+	chessbits whiteBits;
+	pieces2chessbits(blackPieces,&blackBits);
+	pieces2chessbits(whitePieces,&whiteBits);
+	chessbits allBits=blackBits|whiteBits;
+
+	char out[100];
+	
+	//showChess(whitePieces,blackPieces, out);
 	
 
+	Piece piece;
+	piece.color=BLACK;
+	int totalBlackMoves=0;
+	for(int i=0; i<64; i++)	{
+		if (blackPieces[i]){
+			piece.type=blackPieces[i];
+			piece.pos=i;
+			chessbits takeBits;
+			chessbits moveBits;
+
+			whatCanPieceDo(&piece,allBits,whiteBits,blackBits,&takeBits,&moveBits);
+			if (moveDepth<MAX_DEPTH)
+				for(int move=0; move<64; move++){
+					if ((moveBits>>move)&1){
+						blackPieces[i]=0;
+						blackPieces[move]=piece.type;
+						
+						sprintf(out,"black move.. %d",moveDepth);
+						showChess(whitePieces,blackPieces,out);
+						ChessState chessState=whiteMove();
+						if (minChessState>=chessState){
+							minChessState=chessState;
+							bestMoves[moveDepth].from=i;
+							bestMoves[moveDepth].to=move;
+							
+						}
+
+
+						blackPieces[move]=0;
+  						blackPieces[i]=piece.type;
+					}
+				}
+			if (countBits(takeBits))
+				for (int take=0; take<64; take++){
+					if ((takeBits>>take)&1){
+						blackPieces[i]=0;
+						blackPieces[take]=piece.type;
+						int whiteDead=whitePieces[take];
+						whitePieces[take]=0;
+						_ASSERTE(whiteDead);
+						sprintf(out,"black take.. %d",moveDepth);
+						showChess(whitePieces,blackPieces,out);
+						ChessState chessState=whiteMove();
+						
+						if (minChessState>=chessState){
+							minChessState=chessState;
+							bestMoves[moveDepth].from=i;
+							bestMoves[moveDepth].to=take;
+
+						}
+
+						blackPieces[take]=0;
+						blackPieces[i]=piece.type;
+						whitePieces[take]=whiteDead;
+					}
+				}
+		
+			if (!minChessState.completed){
+				if (minChessState.blackMoves==0)
+					minChessState.blackMoves+=countBits(moveBits);
+			}
+			if (minChessState.blackForce==0)
+				minChessState.blackForce++;
+
+		}
+	}
+	if (!minChessState.completed){
+		minChessState.whiteForce=countBits(whiteBits);
+		minChessState.blackForce=countBits(blackBits);
+		minChessState.ratio=minChessState.whiteForce-minChessState.blackForce;
+		minChessState.completed=true;
+	}
+
+	moveDepth--;
+	return minChessState ;
+}
+
+
+ChessState whiteMove()
+{
+	moveDepth++;
+	chessbits blackBits,whiteBits;
+	pieces2chessbits((int*)blackPieces,&blackBits);
+	pieces2chessbits((int*)whitePieces,&whiteBits);
+	chessbits allBits=blackBits|whiteBits;
+
+	char out[100];
+	sprintf(out,"white thinking.. %d",moveDepth);
+	//showBitsWB(whiteBits,blackBits, out);
+	//showChess(whitePieces,blackPieces,out);
 	
+	Piece piece={WHITE,0,0};
+	int totalWhiteMoves=0;
+	int minBlackRatio=9999;
+	int bestWhiteMove=9999;
+	int bestWhitePiece=9999;
+
+	ChessState maxChessState={0,0,0,0,-999,-1,false};
+
+	for(int i=0; i<64; i++)	{
+		if (whitePieces[i]){
+			piece.type=whitePieces[i];
+			piece.pos=i;
+			chessbits takeBits,moveBits;
+
+			
+			whatCanPieceDo(&piece,allBits,whiteBits,blackBits,&takeBits,&moveBits);
+			if (moveDepth<MAX_DEPTH)
+				for(int move=0; move<64; move++){
+					if ((moveBits>>move)&1){
+						whitePieces[i]=0;
+						whitePieces[move]=piece.type;
+						sprintf(out,"WHITE MOVE.. %d",moveDepth);
+						showChess(whitePieces,blackPieces,out);
+						ChessState chessState=blackMove();
+
+						if (maxChessState<=chessState){
+							maxChessState=chessState;
+							bestMoves[moveDepth].from=i;
+							bestMoves[moveDepth].to=move;
+						}
+
+						//if (blackRatio<minBlackRatio){
+						//	minBlackRatio=blackRatio;
+						//	bestWhiteMove=move;
+						//	bestWhitePiece=i;
+						//}
+						whitePieces[move]=0;
+						whitePieces[i]=piece.type;
+
+					}
+				}
+			if (countBits(takeBits))
+				for (int take=0; take<64; take++){
+					if ((takeBits>>take)&1){
+						whitePieces[i]=0;
+						whitePieces[take]=piece.type;
+						int blackDead=blackPieces[take];
+						blackPieces[take]=0;
+						_ASSERTE(blackDead);
+						sprintf(out,"WHITE MOVE take.. %d",moveDepth);
+						showChess(whitePieces,blackPieces,out);
+						ChessState chessState=blackMove();
+						if (maxChessState<=chessState){
+							maxChessState=chessState;
+							bestMoves[moveDepth].from=i;
+							bestMoves[moveDepth].to=take;
+
+						}
+
+						//if (blackRatio<minBlackRatio){
+						//	minBlackRatio=blackRatio;
+						//	bestWhiteMove=take;
+						//	bestWhitePiece=i;
+						//}
+						whitePieces[take]=0;
+						whitePieces[i]=piece.type;
+						blackPieces[take]=blackDead;
+					}
+				}
+			if (!maxChessState.completed){
+				if (maxChessState.whiteMoves==0)
+					maxChessState.whiteMoves+=countBits(moveBits);
+			
+			}
+
+		}
+	}
+	if (!maxChessState.completed){
+		maxChessState.whiteForce=countBits(whiteBits);
+		maxChessState.blackForce=countBits(blackBits);
+		maxChessState.ratio=maxChessState.whiteForce-maxChessState.blackForce;
+		maxChessState.completed=true;
+	}
+	moveDepth--;
+	
+	return maxChessState;
 }
 
 int main()
 {
 	
+	initPureMovesBase(pureMovesBase);
+	initReplacementBase(replacementFwdBase, replacementInvBase);
 
-	int   blackPieces[8][8];
-	int	  whitePieces[8][8];
+
 	nmppsSet_32s((nm32s*)blackPieces,0,64);
 	nmppsSet_32s((nm32s*)whitePieces,0,64);
 	
-	whitePieces[1][0]=PAWN;
-
-	blackPieces[0][7]=PAWN;
-	blackPieces[0][6]=PAWN;
-	blackPieces[1][5]=PAWN;
-	blackPieces[0][4]=PAWN;
-	blackPieces[0][3]=PAWN;
+/*	whitePieces[1*8+0]=PAWN;
+                 
+	blackPieces[0*8+7]=PAWN;
+	blackPieces[0*8+6]=PAWN;
+	blackPieces[1*8+5]=PAWN;
+	blackPieces[0*8+4]=PAWN;
+	blackPieces[0*8+3]=PAWN;
 	//blackPieces[0][2]=PAWN;
 	//blackPieces[0][1]=PAWN;
-	blackPieces[0][0]=PAWN;
+	blackPieces[0*8+0]=PAWN;
 	//blackPieces[1][0]=PAWN;
 	//blackPieces[2][0]=PAWN;
-	blackPieces[3][0]=PAWN;
-	blackPieces[4][0]=PAWN;
+	blackPieces[3*8+0]=PAWN;
+	blackPieces[4*8+0]=PAWN;
 	//blackPieces[5][0]=PAWN;
-	blackPieces[6][0]=PAWN;
-	blackPieces[7][0]=PAWN;
+	blackPieces[6*8+0]=PAWN;
+	blackPieces[7*8+0]=PAWN;
+*/
+
+	whitePieces[0*8+5]=ROOK;
+	whitePieces[0*8+4]=ROOK;
+	whitePieces[1*8+0]=BISHOP;
+	whitePieces[0*8+1]=BISHOP;
+	blackPieces[6*8+2]=ROOK;
+	blackPieces[6*8+3]=ROOK;
+	blackPieces[7*8+1]=BISHOP;
+	blackPieces[7*8+7]=BISHOP;
+
+	showChess(whitePieces,blackPieces,"0");
+	whiteMove();
 	
+
 	chessbits blackBits;
 	chessbits whiteBits;
-	pieces2chessbits((int*)blackPieces,&blackBits);
-	pieces2chessbits((int*)whitePieces,&whiteBits);
-	chessbits allBits=blackBits|whiteBits;
-	showBits(allBits,"\nallBits",'o');
-	int piece=KING;
-	int pos=63; 
-	
-	initPureMovesBase(pureMovesBase);
-	initReplacementBase(replacementFwdBase, replacementInvBase);
-	
-	
-	chessbits pureMoves=pureMovesBase[WHITE][CASTLE][8*0+0];
-	//return (pureMoves);
-	chessbits takeSquares,moveSquares;
-	
-	//return (allBits);
-	chessbits allTakeBits=allBits&pureMoves;
-	chessbits allTakeBitsT;
-	chessbits takeBitsT;
-	chessbits moveBitsT;
 	chessbits takeBits;
 	chessbits moveBits;
 
-	Piece fig={WHITE,CASTLE,10};
+	pieces2chessbits((int*)blackPieces,&blackBits);
+	pieces2chessbits((int*)whitePieces,&whiteBits);
+	chessbits allBits=blackBits|whiteBits;
+	
+	
+	
+	
+	
+	Piece fig={WHITE,ROOK,63};
 	whatCanPieceDo( &fig, allBits,  whiteBits,  blackBits, &takeBits, &moveBits);
 
+	showBits(allBits,"\nallBits",'o');
 	showBits(whiteBits,"\nwhiteBits",'w');
 	showBits(blackBits,"\nblackBits",'b');
 	showBits(takeBits,"\ntakeBits",'*');
 	showBits(moveBits,"\nmoveBits",'#');
 
-	nm64u replacementFwd[64];
-	nm64u replacementInv[64];
 
-	initOrderFwd(CASTLE,0,0,newOrderFwd);
-	inverseOrder(newOrderFwd,newOrderInv);
-	nmppsInitBitReplace(newOrderFwd,replacementFwd);
-	nmppsInitBitReplace(newOrderInv,replacementInv);
-	nmppsBitReplace(&allTakeBits,replacementFwd,&allTakeBitsT,1);
-	showBits(allTakeBits,"\nallTakeBits");
-	getMoveBits(&allTakeBitsT,&takeBitsT,&moveBitsT);
-	nmppsBitReplace(&takeBitsT,replacementInv,&takeBits,1);
-	nmppsBitReplace(&moveBitsT,replacementInv,&moveBits,1);
-	showBits(takeBits,"\ntakeBits");
-	showBits(moveBits,"\nmoveBits");
-//	detransposeSquares(&takeSquares,blackPieces[pos],pos);
-	
-	
 	
 		  
  	return takeBits;
