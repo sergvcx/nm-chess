@@ -22,15 +22,28 @@ struct ChessState {
 	int lastColor;
 	bool completed;
 	bool operator <=(ChessState & state) {
-		//int curRatio=whiteForce-blackForce;
+		if (whiteForce==0 && blackForce==0) return true;
+		int thisRatio  =(whiteForce-blackForce)*10+(whiteMoves-blackMoves);
+		int paramRatio =(state.whiteForce-state.blackForce)*10+(state.whiteMoves-state.blackMoves);
 		//int parRatio=state.whiteForce-state.blackForce;
-		return ratio<=state.ratio;
+		//int deltaForce = (whiteForce-blackForce)-(state.whiteForce-state.blackForce);
+		//int deltaMoves = (whiteMoves-blackMoves)-(state.whiteMoves-state.blackMoves);
+		return thisRatio<=paramRatio;
 	}
 	bool operator >=(ChessState & state) {
+		if (whiteForce==0 && blackForce==0) return true;
+		int thisRatio  =(whiteForce-blackForce)*10+(whiteMoves-blackMoves);
+		int paramRatio =(state.whiteForce-state.blackForce)*10+(state.whiteMoves-state.blackMoves);
+		//int parRatio=state.whiteForce-state.blackForce;
+		//int deltaForce = (whiteForce-blackForce)-(state.whiteForce-state.blackForce);
+		//int deltaMoves = (whiteMoves-blackMoves)-(state.whiteMoves-state.blackMoves);
+		return thisRatio>=paramRatio;
+	}
+	//bool operator >=(ChessState & state) {
 		//int curRatio=whiteForce-blackForce;
 		//int parRatio=state.whiteForce-state.blackForce;
-		return ratio>=state.ratio;
-	}
+	//	return ratio>=state.ratio;
+	//}
 };
 
 
@@ -309,7 +322,9 @@ ChessState blackMove()
 
 	Piece piece;
 	piece.color=BLACK;
-	int totalBlackMoves=0;
+	int totalMoves=0;
+	int totalTakes=0;
+	int totalForce=0;
 	for(int i=0; i<64; i++)	{
 		if (blackPieces[i]){
 			piece.type=blackPieces[i];
@@ -318,9 +333,13 @@ ChessState blackMove()
 			chessbits moveBits;
 
 			whatCanPieceDo(&piece,allBits,whiteBits,blackBits,&takeBits,&moveBits);
+			
+			totalForce++;
+			totalMoves+=countBits(moveBits);
 			if (moveDepth<MAX_DEPTH)
 				for(int move=0; move<64; move++){
 					if ((moveBits>>move)&1){
+						
 						blackPieces[i]=0;
 						blackPieces[move]=piece.type;
 						
@@ -339,9 +358,12 @@ ChessState blackMove()
   						blackPieces[i]=piece.type;
 					}
 				}
-			if (countBits(takeBits))
+			int countTakeBits=countBits(takeBits);
+			totalTakes+=countTakeBits;
+			if (countTakeBits)
 				for (int take=0; take<64; take++){
 					if ((takeBits>>take)&1){
+						totalTakes++;
 						blackPieces[i]=0;
 						blackPieces[take]=piece.type;
 						int whiteDead=whitePieces[take];
@@ -363,22 +385,26 @@ ChessState blackMove()
 						whitePieces[take]=whiteDead;
 					}
 				}
-		
-			if (!minChessState.completed){
-				if (minChessState.blackMoves==0)
-					minChessState.blackMoves+=countBits(moveBits);
-			}
-			if (minChessState.blackForce==0)
-				minChessState.blackForce++;
+			//if (!minChessState.completed){
+			//	if (minChessState.blackMoves==0)
+			//		minChessState.blackMoves+=countBits(moveBits);
+			//}
+			//if (minChessState.blackForce==0)
+			//	minChessState.blackForce++;
 
 		}
 	}
-	if (!minChessState.completed){
-		minChessState.whiteForce=countBits(whiteBits);
-		minChessState.blackForce=countBits(blackBits);
-		minChessState.ratio=minChessState.whiteForce-minChessState.blackForce;
-		minChessState.completed=true;
-	}
+	if (minChessState.blackMoves==0)
+		minChessState.blackMoves=totalMoves+totalTakes;
+	if (minChessState.blackForce==0)
+		minChessState.blackForce=totalForce;
+
+	//if (!minChessState.completed){
+	//	minChessState.whiteForce=countBits(whiteBits);
+	//	minChessState.blackForce=countBits(blackBits);
+	//	minChessState.ratio=minChessState.whiteForce-minChessState.blackForce;
+	//	minChessState.completed=true;
+	//}
 
 	moveDepth--;
 	return minChessState ;
@@ -399,10 +425,12 @@ ChessState whiteMove()
 	//showChess(whitePieces,blackPieces,out);
 	
 	Piece piece={WHITE,0,0};
-	int totalWhiteMoves=0;
-	int minBlackRatio=9999;
-	int bestWhiteMove=9999;
-	int bestWhitePiece=9999;
+	int totalMoves=0;
+	int totalTakes=0;
+	int totalForce=0;
+	//int minBlackRatio=9999;
+	//int bestWhiteMove=9999;
+	//int bestWhitePiece=9999;
 
 	ChessState maxChessState={0,0,0,0,-999,-1,false};
 
@@ -414,6 +442,8 @@ ChessState whiteMove()
 
 			
 			whatCanPieceDo(&piece,allBits,whiteBits,blackBits,&takeBits,&moveBits);
+			totalForce++;
+			totalMoves+=countBits(moveBits);
 			if (moveDepth<MAX_DEPTH)
 				for(int move=0; move<64; move++){
 					if ((moveBits>>move)&1){
@@ -439,7 +469,9 @@ ChessState whiteMove()
 
 					}
 				}
-			if (countBits(takeBits))
+			int countTakes=countBits(takeBits);
+			totalTakes+=countTakes;
+			if (countTakes)
 				for (int take=0; take<64; take++){
 					if ((takeBits>>take)&1){
 						whitePieces[i]=0;
@@ -467,20 +499,24 @@ ChessState whiteMove()
 						blackPieces[take]=blackDead;
 					}
 				}
-			if (!maxChessState.completed){
-				if (maxChessState.whiteMoves==0)
-					maxChessState.whiteMoves+=countBits(moveBits);
-			
-			}
+			//if (!maxChessState.completed){
+			//	if (maxChessState.whiteMoves==0)
+			//		maxChessState.whiteMoves+=countBits(moveBits);
+			//}
 
 		}
 	}
-	if (!maxChessState.completed){
-		maxChessState.whiteForce=countBits(whiteBits);
-		maxChessState.blackForce=countBits(blackBits);
-		maxChessState.ratio=maxChessState.whiteForce-maxChessState.blackForce;
-		maxChessState.completed=true;
-	}
+	//if (!maxChessState.completed){
+	//	maxChessState.whiteForce=countBits(whiteBits);
+	//	maxChessState.blackForce=countBits(blackBits);
+	//	maxChessState.ratio=maxChessState.whiteForce-maxChessState.blackForce;
+	//	maxChessState.completed=true;
+	//}
+	if (maxChessState.whiteMoves==0)
+		maxChessState.whiteMoves=totalMoves+totalTakes;
+	if (maxChessState.whiteForce==0)
+		maxChessState.whiteForce=totalForce;
+
 	moveDepth--;
 	
 	return maxChessState;
