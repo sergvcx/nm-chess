@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <crtdbg.h>
 
-#define MAX_DEPTH 3
+#define MAX_DEPTH 4
 
 typedef unsigned long long chessbits;
 
@@ -12,8 +12,15 @@ struct  Piece{
 	int type;
 	int pos;
 };
-
+/*
 struct ChessState {
+	int selfRating;
+
+	int moves;
+	int takes;
+	int ratio;
+	//int defenses;
+
 	int whiteMoves;
 	int blackMoves;
 	int whiteForce;
@@ -22,18 +29,30 @@ struct ChessState {
 	int lastColor;
 	bool completed;
 	bool operator <=(ChessState & state) {
-		if (whiteForce==0 && blackForce==0) return true;
-		int thisRatio  =(whiteForce-blackForce)*10+(whiteMoves-blackMoves);
-		int paramRatio =(state.whiteForce-state.blackForce)*10+(state.whiteMoves-state.blackMoves);
+		if (ratio && state.ratio){
+			if (ratio<=state.ratio)
+				ra
+		}
+		else {
+			return (takes+moves*10<=state.takes*10+moves);
+		}
+		//if (whiteForce==0 && blackForce==0) return true;
+		//int thisRatio  =(whiteForce-blackForce)*10+(whiteMoves-blackMoves);
+		//int paramRatio =(state.whiteForce-state.blackForce)*10+(state.whiteMoves-state.blackMoves);
 		//int parRatio=state.whiteForce-state.blackForce;
 		//int deltaForce = (whiteForce-blackForce)-(state.whiteForce-state.blackForce);
 		//int deltaMoves = (whiteMoves-blackMoves)-(state.whiteMoves-state.blackMoves);
-		return thisRatio<=paramRatio;
+		//return thisRatio<=paramRatio;
+		//return true;
 	}
 	bool operator >=(ChessState & state) {
-		if (whiteForce==0 && blackForce==0) return true;
-		int thisRatio  =(whiteForce-blackForce)*10+(whiteMoves-blackMoves);
-		int paramRatio =(state.whiteForce-state.blackForce)*10+(state.whiteMoves-state.blackMoves);
+		if (ratio && state.ratio){
+			return ratio>=state.ratio;
+		}
+
+		//if (whiteForce==0 && blackForce==0) return true;
+		//int thisRatio  =(whiteForce-blackForce)*10+(whiteMoves-blackMoves);
+		//int paramRatio =(state.whiteForce-state.blackForce)*10+(state.whiteMoves-state.blackMoves);
 		//int parRatio=state.whiteForce-state.blackForce;
 		//int deltaForce = (whiteForce-blackForce)-(state.whiteForce-state.blackForce);
 		//int deltaMoves = (whiteMoves-blackMoves)-(state.whiteMoves-state.blackMoves);
@@ -46,7 +65,18 @@ struct ChessState {
 	//}
 };
 
+void MinState(ChessState& minState, ChessState& newState){
+	if (minState.ratio && newState.ratio){
+		if (minState.ratio>newState.ratio)
+			minState.ratio=newState.ratio;
+	}
+	else {
+		if (minState.takes*10+minState.moves>newState.takes*10+newState.moves){
+			minState.
+		}
 
+	}
+}*/
 extern "C" {
 	void transposeSquares(chessbits* squares, int type, int pos);
 	void detransposeSquares(chessbits* squares, int type, int pos);
@@ -301,13 +331,17 @@ int estimatePosition(chessbits takeBits, chessbits moveBits)
 int   blackPieces[64];//8][8];
 int	  whitePieces[64];//8][8];
 
-ChessState whiteMove();
+int whiteMove(int& );
 
 //ChessState chessState={0,0,0,0,-1,false};
 int moveDepth=0;
-ChessState blackMove()
+int  blackMove(int& blackSelfRating)
 {
-	ChessState minChessState={0,0,0,0,999,-1,false};
+	int whiteSelfRating;
+	int minWhiteSelfRating=999;
+	int minRatio=999;
+	int ratio;
+	//ChessState minChessState={0,0,0,0,999,-1,false};
 	moveDepth++;
 	chessbits blackBits;
 	chessbits whiteBits;
@@ -345,12 +379,17 @@ ChessState blackMove()
 						
 						sprintf(out,"black move.. %d",moveDepth);
 						showChess(whitePieces,blackPieces,out);
-						ChessState chessState=whiteMove();
-						if (minChessState>=chessState){
-							minChessState=chessState;
-							bestMoves[moveDepth].from=i;
-							bestMoves[moveDepth].to=move;
-							
+						int ratio=whiteMove(whiteSelfRating);
+						if (ratio>-999){
+							if (minRatio>=ratio){
+								minRatio=ratio;
+								bestMoves[moveDepth].from=i;
+								bestMoves[moveDepth].to=move;
+							}
+						}
+						else {
+							if (minWhiteSelfRating>=whiteSelfRating)
+								minWhiteSelfRating =whiteSelfRating;
 						}
 
 
@@ -371,14 +410,19 @@ ChessState blackMove()
 						_ASSERTE(whiteDead);
 						sprintf(out,"black take.. %d",moveDepth);
 						showChess(whitePieces,blackPieces,out);
-						ChessState chessState=whiteMove();
-						
-						if (minChessState>=chessState){
-							minChessState=chessState;
-							bestMoves[moveDepth].from=i;
-							bestMoves[moveDepth].to=take;
-
+						int ratio=whiteMove(whiteSelfRating);
+						if (ratio>-999){
+							if (minRatio>=ratio){
+								minRatio =ratio;
+								bestMoves[moveDepth].from=i;
+								bestMoves[moveDepth].to=take;
+							}
 						}
+						else {
+							if (minWhiteSelfRating>=whiteSelfRating)
+								minWhiteSelfRating =whiteSelfRating;
+						}
+
 
 						blackPieces[take]=0;
 						blackPieces[i]=piece.type;
@@ -394,10 +438,12 @@ ChessState blackMove()
 
 		}
 	}
-	if (minChessState.blackMoves==0)
-		minChessState.blackMoves=totalMoves+totalTakes;
-	if (minChessState.blackForce==0)
-		minChessState.blackForce=totalForce;
+	blackSelfRating=totalMoves+totalTakes+totalForce*10;
+	if (minWhiteSelfRating!=999){
+		ratio=minWhiteSelfRating-blackSelfRating;
+		if (minRatio>=ratio)
+			minRatio =ratio;
+	}
 
 	//if (!minChessState.completed){
 	//	minChessState.whiteForce=countBits(whiteBits);
@@ -407,12 +453,17 @@ ChessState blackMove()
 	//}
 
 	moveDepth--;
-	return minChessState ;
+	return minRatio;
 }
 
 
-ChessState whiteMove()
+int whiteMove(int& whiteSelfRating)
 {
+	int blackSelfRating;
+	int maxBlackSelfRating=0;
+	int maxRatio=-999;
+	int ratio;
+
 	moveDepth++;
 	chessbits blackBits,whiteBits;
 	pieces2chessbits((int*)blackPieces,&blackBits);
@@ -428,11 +479,12 @@ ChessState whiteMove()
 	int totalMoves=0;
 	int totalTakes=0;
 	int totalForce=0;
+	
 	//int minBlackRatio=9999;
 	//int bestWhiteMove=9999;
 	//int bestWhitePiece=9999;
 
-	ChessState maxChessState={0,0,0,0,-999,-1,false};
+	//ChessState maxChessState={0,0,0,0,-999,-1,false};
 
 	for(int i=0; i<64; i++)	{
 		if (whitePieces[i]){
@@ -451,13 +503,19 @@ ChessState whiteMove()
 						whitePieces[move]=piece.type;
 						sprintf(out,"WHITE MOVE.. %d",moveDepth);
 						showChess(whitePieces,blackPieces,out);
-						ChessState chessState=blackMove();
-
-						if (maxChessState<=chessState){
-							maxChessState=chessState;
-							bestMoves[moveDepth].from=i;
-							bestMoves[moveDepth].to=move;
+						ratio=blackMove(blackSelfRating);
+						if (ratio<999){
+							if (maxRatio<=ratio){
+								maxRatio =ratio;
+								bestMoves[moveDepth].from=i;
+								bestMoves[moveDepth].to=move;
+							}
 						}
+						else {
+							if (maxBlackSelfRating<=blackSelfRating)
+								maxBlackSelfRating =blackSelfRating;
+						}
+
 
 						//if (blackRatio<minBlackRatio){
 						//	minBlackRatio=blackRatio;
@@ -481,13 +539,19 @@ ChessState whiteMove()
 						_ASSERTE(blackDead);
 						sprintf(out,"WHITE MOVE take.. %d",moveDepth);
 						showChess(whitePieces,blackPieces,out);
-						ChessState chessState=blackMove();
-						if (maxChessState<=chessState){
-							maxChessState=chessState;
-							bestMoves[moveDepth].from=i;
-							bestMoves[moveDepth].to=take;
-
+						ratio=blackMove(blackSelfRating);
+						if (ratio<999){
+							if (maxRatio<=ratio){
+								maxRatio =ratio;
+								bestMoves[moveDepth].from=i;
+								bestMoves[moveDepth].to=take;
+							}
 						}
+						else {
+							if (maxBlackSelfRating<=blackSelfRating)
+								maxBlackSelfRating =blackSelfRating;
+						}
+
 
 						//if (blackRatio<minBlackRatio){
 						//	minBlackRatio=blackRatio;
@@ -512,14 +576,15 @@ ChessState whiteMove()
 	//	maxChessState.ratio=maxChessState.whiteForce-maxChessState.blackForce;
 	//	maxChessState.completed=true;
 	//}
-	if (maxChessState.whiteMoves==0)
-		maxChessState.whiteMoves=totalMoves+totalTakes;
-	if (maxChessState.whiteForce==0)
-		maxChessState.whiteForce=totalForce;
+	whiteSelfRating=totalMoves+totalTakes+totalForce*10;
+	if (maxBlackSelfRating){
+		ratio=whiteSelfRating-maxBlackSelfRating;
+		if (maxRatio<=ratio)
+			maxRatio =ratio;
+	}
 
 	moveDepth--;
-	
-	return maxChessState;
+	return maxRatio;
 }
 
 int main()
@@ -561,7 +626,8 @@ int main()
 	blackPieces[7*8+7]=BISHOP;
 
 	showChess(whitePieces,blackPieces,"0");
-	whiteMove();
+	int whiteSelfRating;
+	int ratio=whiteMove(whiteSelfRating);
 	
 
 	chessbits blackBits;
