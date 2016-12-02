@@ -92,6 +92,7 @@ extern "C" {
 #define ROOK   4
 #define KNIGHT 5
 #define PAWN   6
+#define PAWNV  7
 
 #define WHITE 0
 #define BLACK 1
@@ -99,7 +100,7 @@ extern "C" {
 char whiteLook[7]={'.','Q','W','B','R','K','P'};
 char blackLook[7]={'.','q','w','b','r','k','p'};
 
-chessbits  pureMovesBase[2][6][8*8];
+chessbits  pureMovesBase[2][7][8*8];
 nm64u replacementFwdBase[2][6][8*8][64];
 nm64u replacementInvBase[2][6][8*8][64];
 struct {
@@ -113,7 +114,8 @@ void nmppsCnv_32s1s(nm32s* src, nm1* dst, int size){
 	}
 }
 
-#define ONBOARD(y,dy,x,dx)  ((y+dy>=0) && (y+dy<8) && (x+dx>=0) && (x+dx<8))
+//#define ONBOARD(y,dy,x,dx)  ((y+dy>=0) && (y+dy<8) && (x+dx>=0) && (x+dx<8))
+#define ONBOARD(y,x)  ((y>=0) && (y<8) && (x>=0) && (x<8))
 
 // Для каждой позиции для каждой фигуры устанавливает битовую карту возможных ходов 
 void initPureMovesBase(chessbits pureMoves[2][6][8*8]){
@@ -130,19 +132,19 @@ void initPureMovesBase(chessbits pureMoves[2][6][8*8]){
 			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[BLACK][ROOK][y*8+x],64);
 		}
 	}
-	// BISHOP
 	
+	// BISHOP
 	for(int x=0; x<8; x++){
 		for(int y=0;y<8; y++){
 			nmppsSet_32s((nm32s*)board,0,64);
 			for(int move=0; move<8; move++){
-				if (ONBOARD(y,move,x,move))
+				if (ONBOARD(y+move,x+move))
 					board[y+move][x+move]=-1;
-				if (ONBOARD(y,move,x,-move))
+				if (ONBOARD(y+move,x-move))
 					board[y+move][x-move]=-1;
-				if (ONBOARD(y,-move,x,move))
+				if (ONBOARD(y-move,x+move))
 					board[y-move][x+move]=-1;
-				if (ONBOARD(y,-move,x,-move))
+				if (ONBOARD(y-move,x-move))
 					board[y-move][x-move]=-1;
 			}
 			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[WHITE][BISHOP][y*8+x],64);
@@ -153,30 +155,104 @@ void initPureMovesBase(chessbits pureMoves[2][6][8*8]){
 	for(int x=0; x<8; x++){
 		for(int y=0;y<8; y++){
 			nmppsSet_32s((nm32s*)board,0,64);
-			
-			if ((y+2<8) && (x+1<8))
+			if (ONBAORD(y+2,x+1))
 				board[y+2][x+1]move]=-1;
-			if ((y+1<8) && (x+2<8))
+			if (ONBAORD(y+1,x+2))
 				board[y+1][x+2]move]=-1;
-			if ((y-1>=0) && (x+2<8))
+			if (ONBAORD(y-1,x+2))
 				board[y-1][x+2]move]=-1;
-			if ((y-2>=0) && (x+1<8))
+			if (ONBAORD(y-2,x+1))
 				board[y-2][x+1]move]=-1;
-			if ((y-2<8) && (x+1<8))
+			if (ONBAORD(y-2,x-1))
 				board[y-2][x-1]move]=-1;
+			if (ONBAORD(y-1,x-2))
 				board[y-1][x-2]move]=-1;
+			if (ONBAORD(y+1,x-2))
 				board[y+1][x-2]move]=-1;
+			if (ONBAORD(y+2,x-1))
 				board[y+2][x-1]move]=-1;
-				
-				
-				board[move][x]=-1;
 			}
-			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[WHITE][ROOK][y*8+x],64);
-			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[BLACK][ROOK][y*8+x],64);
+			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[WHITE][KNIGHT][y*8+x],64);
+			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[BLACK][KNIGHT][y*8+x],64);
 		}
 	}
-	
-	
+	// QUEEN
+	for(int x=0; x<8; x++){
+		for(int y=0;y<8; y++){
+			pureMoves[WHITE][QUEEN][y*8+x]=pureMoves[WHITE][ROOK][y*8+x]|pureMoves[WHITE][BISHOP][y*8+x];
+			pureMoves[BLACK][QUEEN][y*8+x]=pureMoves[WHITE][QUEEN][y*8+x];
+		}
+	}
+
+	//          ^(y)
+	//          |
+	//          |
+	// (x)<-----'
+
+	// KING
+	for(int x=0; x<8; x++){
+		for(int y=0;y<8; y++){
+			nmppsSet_32s((nm32s*)board,0,64);
+			if (ONBOARD(y+0, x+1))
+				board  [y+0][x+1]=-1;
+			if (ONBOARD(y+1, x+1))
+				board  [y+1][x+1]=-1;
+			if (ONBOARD(y+1, x+0))
+				board  [y+1][x+0]=-1;
+			if (ONBOARD(y+1, x-1))
+				board  [y+1][x-1]=-1;
+			if (ONBOARD(y+0, x-1))
+				board  [y+0][x-1]=-1;
+			if (ONBOARD(y-1, x-1))
+				board  [y-1][x-1]=-1;
+			if (ONBOARD(y-1, x-0))
+				board  [y-1][x-0]=-1;
+			if (ONBOARD(y-1, x+1))
+				board  [y-1][x+1]=-1;
+			
+			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[WHITE][KING][y*8+x],64);
+			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[BLACK][KING][y*8+x],64);
+		}
+	}	
+	// PAWN WHITE
+	for(int x=0; x<8; x++){
+		for(int y=0;y<8; y++){
+			nmppsSet_32s((nm32s*)board,0,64);
+			if (ONBOARD(y+1, x)) {
+				board  [y+1][x]=-1;
+				if (y==1){
+					board  [y+2][x]=-1;
+				}
+				nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[WHITE][PAWN][y*8+x],64);
+			}
+			nmppsSet_32s((nm32s*)board,0,64);
+			if (ONBOARD(y+1, x+1)) 
+				board  [y+1][x+1]=-1;
+			if (ONBOARD(y+1, x-1)) 
+				board  [y+1][x-1]=-1;
+			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[WHITE][PAWNV][y*8+x],64);
+		}
+	}	
+	// PAWN BLACK
+	for(int x=0; x<8; x++){
+		for(int y=0;y<8; y++){
+			nmppsSet_32s((nm32s*)board,0,64);
+			if (ONBOARD(y-1, x)) {
+				board  [y-1][x]=-1;
+				if (y==6){
+					board  [y-2][x]=-1;
+				}
+				nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[BLACK][PAWN][y*8+x],64);
+			}
+			nmppsSet_32s((nm32s*)board,0,64);
+			if (ONBOARD(y-1, x+1)) 
+				board  [y-1][x+1]=-1;
+			if (ONBOARD(y-1, x-1)) 
+				board  [y-1][x-1]=-1;
+			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[BLACK][PAWNV][y*8+x],64);
+		}
+	}
+				
 }
 
 
