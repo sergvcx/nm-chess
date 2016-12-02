@@ -293,7 +293,14 @@ void showBitsWB(chessbits whiteBits, chessbits blackBits, char *text)
 	}
 }
 
+void showMoves(int count)
+{
+	for(int i=0; i<count; i++){
+		printf("%d,%d => %d,%d\n",bestMoves[i].from/8,bestMoves[i].from%8,bestMoves[i].to/8,bestMoves[i].to%8);
 
+	}
+
+}
 void whatCanPieceDo(Piece* piece , chessbits allBits,  chessbits whiteBits,  chessbits blackBits, chessbits* takeBits, chessbits* moveBits)
 {
 	chessbits& pureMoves=pureMovesBase[piece->color][piece->type][piece->pos];
@@ -377,8 +384,8 @@ int  blackMove(int& blackSelfRating)
 						blackPieces[i]=0;
 						blackPieces[move]=piece.type;
 						
-						sprintf(out,"black move.. %d",moveDepth);
-						showChess(whitePieces,blackPieces,out);
+						//sprintf(out,"black move.. %d",moveDepth);
+						//showChess(whitePieces,blackPieces,out);
 						int ratio=whiteMove(whiteSelfRating);
 						if (ratio>-999){
 							if (minRatio>=ratio){
@@ -408,8 +415,8 @@ int  blackMove(int& blackSelfRating)
 						int whiteDead=whitePieces[take];
 						whitePieces[take]=0;
 						_ASSERTE(whiteDead);
-						sprintf(out,"black take.. %d",moveDepth);
-						showChess(whitePieces,blackPieces,out);
+						//sprintf(out,"black take.. %d",moveDepth);
+						//showChess(whitePieces,blackPieces,out);
 						int ratio=whiteMove(whiteSelfRating);
 						if (ratio>-999){
 							if (minRatio>=ratio){
@@ -460,7 +467,7 @@ int  blackMove(int& blackSelfRating)
 int whiteMove(int& whiteSelfRating)
 {
 	int blackSelfRating;
-	int maxBlackSelfRating=0;
+	int minBlackSelfRating=999;
 	int maxRatio=-999;
 	int ratio;
 
@@ -501,19 +508,22 @@ int whiteMove(int& whiteSelfRating)
 					if ((moveBits>>move)&1){
 						whitePieces[i]=0;
 						whitePieces[move]=piece.type;
-						sprintf(out,"WHITE MOVE.. %d",moveDepth);
-						showChess(whitePieces,blackPieces,out);
+						//sprintf(out,"WHITE MOVE.. %d",moveDepth);
+						//showChess(whitePieces,blackPieces,out);
 						ratio=blackMove(blackSelfRating);
-						if (ratio<999){
+						if (ratio<999){	// ≈сли рейтинг вернулс€, запоминаем ход который дает максимум рейтинга
 							if (maxRatio<=ratio){
 								maxRatio =ratio;
 								bestMoves[moveDepth].from=i;
 								bestMoves[moveDepth].to=move;
 							}
 						}
-						else {
-							if (maxBlackSelfRating<=blackSelfRating)
-								maxBlackSelfRating =blackSelfRating;
+						else {	// «апоминаем минимальный селф-рейтинг черных
+							if (minBlackSelfRating>=blackSelfRating){
+								minBlackSelfRating =blackSelfRating;
+								//bestMoves[moveDepth].from=i;
+								//bestMoves[moveDepth].to=move;
+							}
 						}
 
 
@@ -537,8 +547,8 @@ int whiteMove(int& whiteSelfRating)
 						int blackDead=blackPieces[take];
 						blackPieces[take]=0;
 						_ASSERTE(blackDead);
-						sprintf(out,"WHITE MOVE take.. %d",moveDepth);
-						showChess(whitePieces,blackPieces,out);
+						//sprintf(out,"WHITE MOVE take.. %d",moveDepth);
+						//showChess(whitePieces,blackPieces,out);
 						ratio=blackMove(blackSelfRating);
 						if (ratio<999){
 							if (maxRatio<=ratio){
@@ -548,8 +558,8 @@ int whiteMove(int& whiteSelfRating)
 							}
 						}
 						else {
-							if (maxBlackSelfRating<=blackSelfRating)
-								maxBlackSelfRating =blackSelfRating;
+							if (minBlackSelfRating>=blackSelfRating)
+								minBlackSelfRating =blackSelfRating;
 						}
 
 
@@ -577,14 +587,14 @@ int whiteMove(int& whiteSelfRating)
 	//	maxChessState.completed=true;
 	//}
 	whiteSelfRating=totalMoves+totalTakes+totalForce*10;
-	if (maxBlackSelfRating){
-		ratio=whiteSelfRating-maxBlackSelfRating;
+	if (minBlackSelfRating!=999){
+		ratio=whiteSelfRating-minBlackSelfRating;
 		if (maxRatio<=ratio)
 			maxRatio =ratio;
 	}
 
 	moveDepth--;
-	return maxRatio;
+	return maxRatio; // return -999 if not ready
 }
 
 int main()
@@ -615,7 +625,7 @@ int main()
 	blackPieces[6*8+0]=PAWN;
 	blackPieces[7*8+0]=PAWN;
 */
-
+/*
 	whitePieces[0*8+5]=ROOK;
 	whitePieces[0*8+4]=ROOK;
 	whitePieces[1*8+0]=BISHOP;
@@ -624,12 +634,24 @@ int main()
 	blackPieces[6*8+3]=ROOK;
 	blackPieces[7*8+1]=BISHOP;
 	blackPieces[7*8+7]=BISHOP;
+*/
+	//whitePieces[6*8+4]=ROOK;
+	whitePieces[3*8+6]=ROOK;
+	whitePieces[0*8+2]=BISHOP;
+	whitePieces[1*8+0]=BISHOP;
+	
+	blackPieces[7*8+0]=ROOK;
+	blackPieces[0*8+5]=ROOK;
+	//blackPieces[6*8+5]=BISHOP;
+	blackPieces[6*8+6]=BISHOP;
+
 
 	showChess(whitePieces,blackPieces,"0");
 	int whiteSelfRating;
 	int ratio=whiteMove(whiteSelfRating);
-	
-
+	showChess(whitePieces,blackPieces,"0");
+	showMoves(10);
+/*
 	chessbits blackBits;
 	chessbits whiteBits;
 	chessbits takeBits;
@@ -652,8 +674,8 @@ int main()
 	showBits(takeBits,"\ntakeBits",'*');
 	showBits(moveBits,"\nmoveBits",'#');
 
-
+*/
 	
 		  
- 	return takeBits;
+ 	return 0;//takeBits;
 }
