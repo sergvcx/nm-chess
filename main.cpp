@@ -115,6 +115,7 @@ void nmppsCnv_32s1s(nm32s* src, nm1* dst, int size){
 
 #define ONBOARD(y,dy,x,dx)  ((y+dy>=0) && (y+dy<8) && (x+dx>=0) && (x+dx<8))
 
+// Для каждой позиции для каждой фигуры устанавливает битовую карту возможных ходов 
 void initPureMovesBase(chessbits pureMoves[2][6][8*8]){
 	// CASTLE
 	int board[8][8];
@@ -148,6 +149,34 @@ void initPureMovesBase(chessbits pureMoves[2][6][8*8]){
 			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[BLACK][BISHOP][y*8+x],64);
 		}
 	}
+	// KNIGHT
+	for(int x=0; x<8; x++){
+		for(int y=0;y<8; y++){
+			nmppsSet_32s((nm32s*)board,0,64);
+			
+			if ((y+2<8) && (x+1<8))
+				board[y+2][x+1]move]=-1;
+			if ((y+1<8) && (x+2<8))
+				board[y+1][x+2]move]=-1;
+			if ((y-1>=0) && (x+2<8))
+				board[y-1][x+2]move]=-1;
+			if ((y-2>=0) && (x+1<8))
+				board[y-2][x+1]move]=-1;
+			if ((y-2<8) && (x+1<8))
+				board[y-2][x-1]move]=-1;
+				board[y-1][x-2]move]=-1;
+				board[y+1][x-2]move]=-1;
+				board[y+2][x-1]move]=-1;
+				
+				
+				board[move][x]=-1;
+			}
+			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[WHITE][ROOK][y*8+x],64);
+			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[BLACK][ROOK][y*8+x],64);
+		}
+	}
+	
+	
 }
 
 
@@ -215,7 +244,36 @@ void initOrderFwd(int piece, int Y, int X, int* order)
 			for(int x=X-1,y=Y-1,i=0; x>=0&y>=0; x--,y--,i++){
 				order[8*3+i]=y*8+x;
 			}
+			
+		case QUEEN:
+			for(int x=X+1,i=0; x<8;  x++,i++){
+				order[8*0+i]=Y*8+x;
+			}
+			for(int y=Y+1,i=0; y<8;  y++,i++){
+				order[8*1+i]=y*8+X;
+			}
+			for(int x=X-1,i=0; x>=0; x--,i++){
+				order[8*2+i]=Y*8+x;
+			}
+			for(int y=Y-1,i=0; y>=0; y--,i++){
+				order[8*3+i]=y*8+X;
+			}
+			for(int x=X+1,y=Y+1,i=0; x<8&y<8 ;  x++,y++,i++){
+				order[8*4+i]=y*8+x;
+			}
+			for(int x=X+1,y=Y-1,i=0; x<8&y>=0;  x++,y--,i++){
+				order[8*5+i]=y*8+x;
+			}
+			for(int x=X-1,y=Y+1,i=0; x>=0&y<8;  x--,y++,i++){
+				order[8*6+i]=y*8+x;
+			}
+			for(int x=X-1,y=Y-1,i=0; x>=0&y>=0; x--,y--,i++){
+				order[8*7+i]=y*8+x;
+			}
 		
+		case KNIGHT:
+			if ((X+1)<8 && (Y+2<8))
+			order[0]=
 			break;
 		default:
 			for(int i=0; i<64; i++)
