@@ -118,11 +118,11 @@ void nmppsCnv_32s1s(nm32s* src, nm1* dst, int size){
 #define ONBOARD(y,x)  ((y>=0) && (y<8) && (x>=0) && (x<8))
 
 // „лЯ каждой позиции длЯ каждой фигуры устанавливает битовую карту возможных ходов 
-void initPureMovesBase(chessbits pureMoves[2][6][8*8]){
+void initPureMovesBase(chessbits pureMoves[2][7][8*8]){
 	// CASTLE
 	int board[8][8];
-	for(int x=0; x<8; x++){
-		for(int y=0;y<8; y++){
+	for(int y=0; y<8; y++){
+		for(int x=0; x<8; x++){
 			nmppsSet_32s((nm32s*)board,0,64);
 			for(int move=0; move<8; move++){
 				board[y][move]=-1;
@@ -134,44 +134,45 @@ void initPureMovesBase(chessbits pureMoves[2][6][8*8]){
 	}
 	
 	// BISHOP
-	for(int x=0; x<8; x++){
-		for(int y=0;y<8; y++){
+	for(int y=0; y<8; y++){
+		for(int x=0; x<8; x++){
 			nmppsSet_32s((nm32s*)board,0,64);
 			for(int move=0; move<8; move++){
-				if (ONBOARD(y+move,x+move))
-					board[y+move][x+move]=-1;
-				if (ONBOARD(y+move,x-move))
-					board[y+move][x-move]=-1;
-				if (ONBOARD(y-move,x+move))
-					board[y-move][x+move]=-1;
-				if (ONBOARD(y-move,x-move))
-					board[y-move][x-move]=-1;
+				if (ONBOARD(y+move, x+move))
+					board  [y+move][x+move]=-1;
+				if (ONBOARD(y+move, x-move))
+					board  [y+move][x-move]=-1;
+				if (ONBOARD(y-move, x+move))
+					board  [y-move][x+move]=-1;
+				if (ONBOARD(y-move, x-move))
+					board  [y-move][x-move]=-1;
 			}
 			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[WHITE][BISHOP][y*8+x],64);
 			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[BLACK][BISHOP][y*8+x],64);
 		}
 	}
+	/*
 	// KNIGHT
 	for(int x=0; x<8; x++){
 		for(int y=0;y<8; y++){
 			nmppsSet_32s((nm32s*)board,0,64);
-			if (ONBAORD(y+2,x+1))
-				board[y+2][x+1]move]=-1;
-			if (ONBAORD(y+1,x+2))
-				board[y+1][x+2]move]=-1;
-			if (ONBAORD(y-1,x+2))
-				board[y-1][x+2]move]=-1;
-			if (ONBAORD(y-2,x+1))
-				board[y-2][x+1]move]=-1;
-			if (ONBAORD(y-2,x-1))
-				board[y-2][x-1]move]=-1;
-			if (ONBAORD(y-1,x-2))
-				board[y-1][x-2]move]=-1;
-			if (ONBAORD(y+1,x-2))
-				board[y+1][x-2]move]=-1;
-			if (ONBAORD(y+2,x-1))
-				board[y+2][x-1]move]=-1;
-			}
+			if (ONBOARD(y+2,x+1))
+				board[y+2][x+1]=-1;
+			if (ONBOARD(y+1,x+2))
+				board[y+1][x+2]=-1;
+			if (ONBOARD(y-1,x+2))
+				board[y-1][x+2]=-1;
+			if (ONBOARD(y-2,x+1))
+				board[y-2][x+1]=-1;
+			if (ONBOARD(y-2,x-1))
+				board[y-2][x-1]=-1;
+			if (ONBOARD(y-1,x-2))
+				board[y-1][x-2]=-1;
+			if (ONBOARD(y+1,x-2))
+				board[y+1][x-2]=-1;
+			if (ONBOARD(y+2,x-1))
+				board[y+2][x-1]=-1;
+			
 			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[WHITE][KNIGHT][y*8+x],64);
 			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[BLACK][KNIGHT][y*8+x],64);
 		}
@@ -252,7 +253,7 @@ void initPureMovesBase(chessbits pureMoves[2][6][8*8]){
 			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[BLACK][PAWNV][y*8+x],64);
 		}
 	}
-				
+	*/		
 }
 
 
@@ -320,7 +321,7 @@ void initOrderFwd(int piece, int Y, int X, int* order)
 			for(int x=X-1,y=Y-1,i=0; x>=0&y>=0; x--,y--,i++){
 				order[8*3+i]=y*8+x;
 			}
-			
+	/*		
 		case QUEEN:
 			for(int x=X+1,i=0; x<8;  x++,i++){
 				order[8*0+i]=Y*8+x;
@@ -348,9 +349,9 @@ void initOrderFwd(int piece, int Y, int X, int* order)
 			}
 		
 		case KNIGHT:
-			if ((X+1)<8 && (Y+2<8))
-			order[0]=
-			break;
+		//	if ((X+1)<8 && (Y+2<8))
+		//	order[0]=
+			break;*/
 		default:
 			for(int i=0; i<64; i++)
 				order[i]=i;
@@ -642,8 +643,8 @@ int whiteMove(int& whiteSelfRating)
 					if ((moveBits>>move)&1){
 						whitePieces[i]=0;
 						whitePieces[move]=piece.type;
-						//sprintf(out,"WHITE MOVE.. %d",moveDepth);
-						//showChess(whitePieces,blackPieces,out);
+						sprintf(out,"WHITE MOVE.. %d",moveDepth);
+						showChess(whitePieces,blackPieces,out);
 						ratio=blackMove(blackSelfRating);
 						if (ratio<999){	// Если рейтинг вернулся, запоминаем ход который дает максимум рейтинга
 							if (maxRatio<=ratio){
@@ -681,8 +682,8 @@ int whiteMove(int& whiteSelfRating)
 						int blackDead=blackPieces[take];
 						blackPieces[take]=0;
 						_ASSERTE(blackDead);
-						//sprintf(out,"WHITE MOVE take.. %d",moveDepth);
-						//showChess(whitePieces,blackPieces,out);
+						sprintf(out,"WHITE MOVE take.. %d",moveDepth);
+						showChess(whitePieces,blackPieces,out);
 						ratio=blackMove(blackSelfRating);
 						if (ratio<999){
 							if (maxRatio<=ratio){
