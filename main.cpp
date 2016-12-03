@@ -4,7 +4,7 @@
 #include <crtdbg.h>
 
 #define MAX_DEPTH 4
-
+#define SHOW 
 typedef unsigned long long chessbits;
 
 struct  Piece{
@@ -85,20 +85,20 @@ extern "C" {
 }
 
 
-
 #define QUEEN  1
-#define KING   2
+#define ROOK   2
 #define BISHOP 3
-#define ROOK   4
-#define KNIGHT 5
-#define PAWN   6
-#define PAWNV  7
+#define KNIGHT 4
+#define PAWN   5
+#define PAWNV  6
+#define KING   7
+
 
 #define WHITE 0
 #define BLACK 1
 
-char whiteLook[7]={'.','Q','W','B','R','K','P'};
-char blackLook[7]={'.','q','w','b','r','k','p'};
+char whiteLook[8]={'.','Q','R','B','K','P','P','K'};
+char blackLook[8]={'.','q','r','b','k','p','p','k'};
 
 chessbits  pureMovesBase[2][7][8*8];
 nm64u replacementFwdBase[2][6][8*8][64];
@@ -151,7 +151,7 @@ void initPureMovesBase(chessbits pureMoves[2][7][8*8]){
 			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[BLACK][BISHOP][y*8+x],64);
 		}
 	}
-	/*
+	
 	// KNIGHT
 	for(int x=0; x<8; x++){
 		for(int y=0;y<8; y++){
@@ -253,7 +253,7 @@ void initPureMovesBase(chessbits pureMoves[2][7][8*8]){
 			nmppsCnv_32s1s((nm32s*)board,(nm1*)&pureMoves[BLACK][PAWNV][y*8+x],64);
 		}
 	}
-	*/		
+	
 }
 
 
@@ -321,6 +321,7 @@ void initOrderFwd(int piece, int Y, int X, int* order)
 			for(int x=X-1,y=Y-1,i=0; x>=0&y>=0; x--,y--,i++){
 				order[8*3+i]=y*8+x;
 			}
+			break;
 	/*		
 		case QUEEN:
 			for(int x=X+1,i=0; x<8;  x++,i++){
@@ -444,14 +445,24 @@ void whatCanPieceDo(Piece* piece , chessbits allBits,  chessbits whiteBits,  che
 	chessbits takeBitsT;
 	chessbits moveBitsT;
 
-	nmppsBitReplace(&allTakeBits,replacementFwdBase[piece->color][piece->type][piece->pos],&allTakeBitsT,1);
-	getMoveBits(&allTakeBitsT,&takeBitsT,&moveBitsT);
-	nmppsBitReplace(&moveBitsT,replacementInvBase[piece->color][piece->type][piece->pos],moveBits,1);
-	nmppsBitReplace(&takeBitsT,replacementInvBase[piece->color][piece->type][piece->pos],takeBits,1);
-	if (piece->color==WHITE)
-		(*takeBits)&=blackBits;
-	else 
-		(*takeBits)&=whiteBits;
+	if (piece->type<=BISHOP){
+		nmppsBitReplace(&allTakeBits,replacementFwdBase[piece->color][piece->type][piece->pos],&allTakeBitsT,1);
+		getMoveBits(&allTakeBitsT,&takeBitsT,&moveBitsT);
+		nmppsBitReplace(&moveBitsT,replacementInvBase[piece->color][piece->type][piece->pos],moveBits,1);
+		nmppsBitReplace(&takeBitsT,replacementInvBase[piece->color][piece->type][piece->pos],takeBits,1);
+		if (piece->color==WHITE)
+			(*takeBits)&=blackBits;
+		else 
+			(*takeBits)&=whiteBits;
+	}
+	else {
+		*moveBits=(~allBits)&pureMoves;
+		if (piece->color==WHITE)
+			(*takeBits)=pureMoves&blackBits;
+		else 
+			(*takeBits)=pureMoves&whiteBits;
+
+	}
 }
 
 int countBits(chessbits bits)
@@ -518,9 +529,10 @@ int  blackMove(int& blackSelfRating)
 						
 						blackPieces[i]=0;
 						blackPieces[move]=piece.type;
-						
-						//sprintf(out,"black move.. %d",moveDepth);
-						//showChess(whitePieces,blackPieces,out);
+#ifdef SHOW						
+						sprintf(out,"black move.. %d",moveDepth);
+						showChess(whitePieces,blackPieces,out);
+#endif
 						int ratio=whiteMove(whiteSelfRating);
 						if (ratio>-999){
 							if (minRatio>=ratio){
@@ -550,8 +562,10 @@ int  blackMove(int& blackSelfRating)
 						int whiteDead=whitePieces[take];
 						whitePieces[take]=0;
 						_ASSERTE(whiteDead);
-						//sprintf(out,"black take.. %d",moveDepth);
-						//showChess(whitePieces,blackPieces,out);
+#ifdef SHOW
+						sprintf(out,"black take.. %d",moveDepth);
+						showChess(whitePieces,blackPieces,out);
+#endif
 						int ratio=whiteMove(whiteSelfRating);
 						if (ratio>-999){
 							if (minRatio>=ratio){
@@ -643,8 +657,10 @@ int whiteMove(int& whiteSelfRating)
 					if ((moveBits>>move)&1){
 						whitePieces[i]=0;
 						whitePieces[move]=piece.type;
+#ifdef SHOW
 						sprintf(out,"WHITE MOVE.. %d",moveDepth);
 						showChess(whitePieces,blackPieces,out);
+#endif
 						ratio=blackMove(blackSelfRating);
 						if (ratio<999){	// Если рейтинг вернулся, запоминаем ход который дает максимум рейтинга
 							if (maxRatio<=ratio){
@@ -682,8 +698,10 @@ int whiteMove(int& whiteSelfRating)
 						int blackDead=blackPieces[take];
 						blackPieces[take]=0;
 						_ASSERTE(blackDead);
+#ifdef SHOW
 						sprintf(out,"WHITE MOVE take.. %d",moveDepth);
 						showChess(whitePieces,blackPieces,out);
+#endif
 						ratio=blackMove(blackSelfRating);
 						if (ratio<999){
 							if (maxRatio<=ratio){
@@ -732,6 +750,24 @@ int whiteMove(int& whiteSelfRating)
 	return maxRatio; // return -999 if not ready
 }
 
+void init2Kinights()
+{
+	whitePieces[4*8+4]=KNIGHT;
+	whitePieces[5*8+2]=ROOK;
+	blackPieces[5*8+5]=KNIGHT;
+}
+
+void int2Bishops2Rooks(){
+	whitePieces[0*8+5]=ROOK;
+	whitePieces[0*8+4]=ROOK;
+	whitePieces[1*8+0]=BISHOP;
+	whitePieces[0*8+1]=BISHOP;
+	blackPieces[6*8+2]=ROOK;
+	blackPieces[6*8+3]=ROOK;
+	blackPieces[7*8+1]=BISHOP;
+	blackPieces[7*8+7]=BISHOP;
+}
+
 int main()
 {
 	
@@ -760,26 +796,8 @@ int main()
 	blackPieces[6*8+0]=PAWN;
 	blackPieces[7*8+0]=PAWN;
 */
-/*
-	whitePieces[0*8+5]=ROOK;
-	whitePieces[0*8+4]=ROOK;
-	whitePieces[1*8+0]=BISHOP;
-	whitePieces[0*8+1]=BISHOP;
-	blackPieces[6*8+2]=ROOK;
-	blackPieces[6*8+3]=ROOK;
-	blackPieces[7*8+1]=BISHOP;
-	blackPieces[7*8+7]=BISHOP;
-*/
-	//whitePieces[6*8+4]=ROOK;
-	whitePieces[3*8+6]=ROOK;
-	whitePieces[0*8+2]=BISHOP;
-	whitePieces[1*8+0]=BISHOP;
-	
-	blackPieces[7*8+0]=ROOK;
-	blackPieces[0*8+5]=ROOK;
-	//blackPieces[6*8+5]=BISHOP;
-	blackPieces[6*8+6]=BISHOP;
 
+	init2Kinights();
 
 	showChess(whitePieces,blackPieces,"0");
 	int whiteSelfRating;
