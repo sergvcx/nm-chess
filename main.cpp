@@ -102,7 +102,7 @@ extern "C" {
 
 char whiteLook[8]={'.','Q','R','B','K','P','P','W'};
 char blackLook[8]={'.','q','r','b','k','p','p','w'};
-
+int  power[8]    ={0,50,30,25,25,10,10,1000};
 chessbits  pureMovesBase[2][7][8*8];
 nm64u replacementFwdBase[2][6][8*8][64];
 nm64u replacementInvBase[2][6][8*8][64];
@@ -503,7 +503,7 @@ int whiteMove(int& );
 
 //ChessState chessState={0,0,0,0,-1,false};
 int moveDepth=0;
-int  blackMove(int& blackSelfRating)
+int  blackMove(int& blackSelfRating, int diffForce)
 {
 	int whiteSelfRating;
 	int minWhiteSelfRating=999999;
@@ -526,7 +526,7 @@ int  blackMove(int& blackSelfRating)
 	piece.color=BLACK;
 	int totalMoves=0;
 	int totalTakes=0;
-	int totalForce=0;
+	//int totalForce=0;
 	for(int i=0; i<64; i++)	{
 		if (blackPieces[i]){
 			piece.type=blackPieces[i];
@@ -535,10 +535,10 @@ int  blackMove(int& blackSelfRating)
 			chessbits moveBits;
 
 			whatCanPieceDo(&piece,allBits,whiteBits,blackBits,&takeBits,&moveBits);
-			if (piece.type==KING)
-				totalForce+=100;
-			else 
-				totalForce++;
+			//if (piece.type==KING)
+			//	totalForce+=100;
+			//else 
+			//	totalForce++;
 			totalMoves+=countBits(moveBits);
 			if (moveDepth<MAX_DEPTH){
 				for(int move=0; move<64; move++){
@@ -550,7 +550,7 @@ int  blackMove(int& blackSelfRating)
 						sprintf(out,"black move.. %d",moveDepth);
 						showChess(whitePieces,blackPieces,out);
 #endif
-						int ratio=whiteMove(whiteSelfRating);
+						int ratio=whiteMove(whiteSelfRating,diffForce);
 						if (ratio>-999999){
 							if (minRatio>=ratio){
 								minRatio=ratio;
@@ -583,13 +583,14 @@ int  blackMove(int& blackSelfRating)
 						blackPieces[i]=0;
 						blackPieces[take]=piece.type;
 						int whiteDead=whitePieces[take];
+						diffForce-=power[whiteDead];
 						whitePieces[take]=0;
 						_ASSERTE(whiteDead);
 #ifdef SHOW
 						sprintf(out,"black take.. %d",moveDepth);
 						showChess(whitePieces,blackPieces,out);
 #endif
-						int ratio=whiteMove(whiteSelfRating);
+						int ratio=whiteMove(whiteSelfRating,diffForce);
 						if (ratio>-999999){
 							if (minRatio>=ratio){
 								minRatio =ratio;
@@ -611,6 +612,7 @@ int  blackMove(int& blackSelfRating)
 						blackPieces[take]=0;
 						blackPieces[i]=piece.type;
 						whitePieces[take]=whiteDead;
+						diffForce+=power[whiteDead];
 					}
 				}
 			}
@@ -642,7 +644,7 @@ int  blackMove(int& blackSelfRating)
 }
 
 
-int whiteMove(int& whiteSelfRating)
+int whiteMove(int& whiteSelfRating, int diffForce)
 {
 	int blackSelfRating;
 	int minBlackSelfRating=999999;
@@ -694,7 +696,7 @@ int whiteMove(int& whiteSelfRating)
 						sprintf(out,"WHITE MOVE.. %d",moveDepth);
 						showChess(whitePieces,blackPieces,out);
 #endif
-						ratio=blackMove(blackSelfRating);
+						ratio=blackMove(blackSelfRating,diffForce);
 						if (ratio<999999){	// Если рейтинг вернулся, запоминаем ход который дает максимум рейтинга
 							if (maxRatio<=ratio){
 								maxRatio =ratio;
@@ -736,13 +738,14 @@ int whiteMove(int& whiteSelfRating)
 						whitePieces[i]=0;
 						whitePieces[take]=piece.type;
 						int blackDead=blackPieces[take];
+						diffForce+=power[blackDead];
 						blackPieces[take]=0;
 						_ASSERTE(blackDead);
 #ifdef SHOW
 						sprintf(out,"WHITE MOVE take.. %d",moveDepth);
 						showChess(whitePieces,blackPieces,out);
 #endif
-						ratio=blackMove(blackSelfRating);
+						ratio=blackMove(blackSelfRating,diffForce);
 						if (ratio<999999){
 							if (maxRatio<=ratio){
 								maxRatio =ratio;
@@ -769,6 +772,7 @@ int whiteMove(int& whiteSelfRating)
 						whitePieces[take]=0;
 						whitePieces[i]=piece.type;
 						blackPieces[take]=blackDead;
+						diffForce-=power[blackDead];
 					}
 				}
 			}
@@ -981,7 +985,7 @@ int main()
 
 	showChess(whitePieces,blackPieces,"0");
 	int whiteSelfRating;
-	int ratio=whiteMove(whiteSelfRating);
+	int ratio=whiteMove(whiteSelfRating,0);
 	showChess(whitePieces,blackPieces,"0");
 	//showMoves(10);
 	printf ("ratio=%d\n",ratio);
