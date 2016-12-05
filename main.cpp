@@ -4,7 +4,8 @@
 #include <crtdbg.h>
 
 #define MAX_DEPTH 4
-#define SHOW 
+#define MAX_TAKE_DEPTH 12
+//#define SHOW 
 typedef unsigned long long chessbits;
 
 struct  Piece{
@@ -97,8 +98,8 @@ extern "C" {
 #define WHITE 0
 #define BLACK 1
 
-char whiteLook[8]={'.','Q','R','B','K','P','P','K'};
-char blackLook[8]={'.','q','r','b','k','p','p','k'};
+char whiteLook[8]={'.','Q','R','B','K','P','P','W'};
+char blackLook[8]={'.','q','r','b','k','p','p','w'};
 
 chessbits  pureMovesBase[2][7][8*8];
 nm64u replacementFwdBase[2][6][8*8][64];
@@ -106,7 +107,7 @@ nm64u replacementInvBase[2][6][8*8][64];
 struct {
 	int from;
 	int to;
-} bestMoves[10];
+} bestMoves[10],bestMove;
 
 void nmppsCnv_32s1s(nm32s* src, nm1* dst, int size){
 	for(int i=0; i<size; i++){
@@ -322,7 +323,7 @@ void initOrderFwd(int piece, int Y, int X, int* order)
 				order[8*3+i]=y*8+x;
 			}
 			break;
-	/*		
+		
 		case QUEEN:
 			for(int x=X+1,i=0; x<8;  x++,i++){
 				order[8*0+i]=Y*8+x;
@@ -348,11 +349,8 @@ void initOrderFwd(int piece, int Y, int X, int* order)
 			for(int x=X-1,y=Y-1,i=0; x>=0&y>=0; x--,y--,i++){
 				order[8*7+i]=y*8+x;
 			}
-		
-		case KNIGHT:
-		//	if ((X+1)<8 && (Y+2<8))
-		//	order[0]=
-			break;*/
+			break;
+
 		default:
 			for(int i=0; i<64; i++)
 				order[i]=i;
@@ -431,10 +429,11 @@ void showBitsWB(chessbits whiteBits, chessbits blackBits, char *text)
 
 void showMoves(int count)
 {
-	for(int i=0; i<count; i++){
-		printf("%d,%d => %d,%d\n",bestMoves[i].from/8,bestMoves[i].from%8,bestMoves[i].to/8,bestMoves[i].to%8);
+	//for(int i=0; i<count; i++){
+		//printf("%d,%d => %d,%d\n",bestMoves[i].from/8,bestMoves[i].from%8,bestMoves[i].to/8,bestMoves[i].to%8);
+	printf("%d,%d => %d,%d\n",bestMove.from/8,bestMove.from%8,bestMove.to/8,bestMove.to%8);
 
-	}
+	//}
 
 }
 void whatCanPieceDo(Piece* piece , chessbits allBits,  chessbits whiteBits,  chessbits blackBits, chessbits* takeBits, chessbits* moveBits)
@@ -445,7 +444,10 @@ void whatCanPieceDo(Piece* piece , chessbits allBits,  chessbits whiteBits,  che
 	chessbits takeBitsT;
 	chessbits moveBitsT;
 
-	if (piece->type<=BISHOP){
+	switch (piece->type){
+	case QUEEN:
+	case ROOK:
+	case BISHOP:
 		nmppsBitReplace(&allTakeBits,replacementFwdBase[piece->color][piece->type][piece->pos],&allTakeBitsT,1);
 		getMoveBits(&allTakeBitsT,&takeBitsT,&moveBitsT);
 		nmppsBitReplace(&moveBitsT,replacementInvBase[piece->color][piece->type][piece->pos],moveBits,1);
@@ -454,14 +456,25 @@ void whatCanPieceDo(Piece* piece , chessbits allBits,  chessbits whiteBits,  che
 			(*takeBits)&=blackBits;
 		else 
 			(*takeBits)&=whiteBits;
-	}
-	else {
+		break;
+
+	case KNIGHT:
+	case KING:
 		*moveBits=(~allBits)&pureMoves;
 		if (piece->color==WHITE)
 			(*takeBits)=pureMoves&blackBits;
 		else 
 			(*takeBits)=pureMoves&whiteBits;
-
+		break;
+	case PAWN:
+		*moveBits=(~allBits)&pureMoves;
+		*takeBits=pureMovesBase[piece->color][PAWNV][piece->pos];
+		if (piece->color==WHITE){
+			(*takeBits)&=blackBits;
+		}
+		else 
+			(*takeBits)&=whiteBits;
+		break;
 	}
 }
 
@@ -491,10 +504,10 @@ int moveDepth=0;
 int  blackMove(int& blackSelfRating)
 {
 	int whiteSelfRating;
-	int minWhiteSelfRating=999;
-	int minRatio=999;
+	int minWhiteSelfRating=999999;
+	int minRatio=999999;
 	int ratio;
-	//ChessState minChessState={0,0,0,0,999,-1,false};
+	//ChessState minChessState={0,0,0,0,999999,-1,false};
 	moveDepth++;
 	chessbits blackBits;
 	chessbits whiteBits;
@@ -520,10 +533,12 @@ int  blackMove(int& blackSelfRating)
 			chessbits moveBits;
 
 			whatCanPieceDo(&piece,allBits,whiteBits,blackBits,&takeBits,&moveBits);
-			
-			totalForce++;
+			if (piece.type==KING)
+				totalForce+=100;
+			else 
+				totalForce++;
 			totalMoves+=countBits(moveBits);
-			if (moveDepth<MAX_DEPTH)
+			if (moveDepth<MAX_DEPTH){
 				for(int move=0; move<64; move++){
 					if ((moveBits>>move)&1){
 						
@@ -534,11 +549,16 @@ int  blackMove(int& blackSelfRating)
 						showChess(whitePieces,blackPieces,out);
 #endif
 						int ratio=whiteMove(whiteSelfRating);
-						if (ratio>-999){
+						if (ratio>-999999){
 							if (minRatio>=ratio){
 								minRatio=ratio;
-								bestMoves[moveDepth].from=i;
-								bestMoves[moveDepth].to=move;
+								//bestMoves[moveDepth].from=i;
+								//bestMoves[moveDepth].to=move;
+								if (moveDepth==1){
+									bestMove.from=i;
+									bestMove.to=move;
+								}
+
 							}
 						}
 						else {
@@ -551,9 +571,10 @@ int  blackMove(int& blackSelfRating)
   						blackPieces[i]=piece.type;
 					}
 				}
+			}
 			int countTakeBits=countBits(takeBits);
 			totalTakes+=countTakeBits;
-			if (countTakeBits)
+			if (countTakeBits && moveDepth<MAX_TAKE_DEPTH){
 				for (int take=0; take<64; take++){
 					if ((takeBits>>take)&1){
 						totalTakes++;
@@ -567,11 +588,16 @@ int  blackMove(int& blackSelfRating)
 						showChess(whitePieces,blackPieces,out);
 #endif
 						int ratio=whiteMove(whiteSelfRating);
-						if (ratio>-999){
+						if (ratio>-999999){
 							if (minRatio>=ratio){
 								minRatio =ratio;
-								bestMoves[moveDepth].from=i;
-								bestMoves[moveDepth].to=take;
+								//bestMoves[moveDepth].from=i;
+								//bestMoves[moveDepth].to=take;
+								if (moveDepth==1){
+									bestMove.from=i;
+									bestMove.to=take;
+								}
+
 							}
 						}
 						else {
@@ -585,6 +611,7 @@ int  blackMove(int& blackSelfRating)
 						whitePieces[take]=whiteDead;
 					}
 				}
+			}
 			//if (!minChessState.completed){
 			//	if (minChessState.blackMoves==0)
 			//		minChessState.blackMoves+=countBits(moveBits);
@@ -595,7 +622,7 @@ int  blackMove(int& blackSelfRating)
 		}
 	}
 	blackSelfRating=totalMoves+totalTakes+totalForce*10;
-	if (minWhiteSelfRating!=999){
+	if (minWhiteSelfRating!=999999){
 		ratio=minWhiteSelfRating-blackSelfRating;
 		if (minRatio>=ratio)
 			minRatio =ratio;
@@ -616,8 +643,8 @@ int  blackMove(int& blackSelfRating)
 int whiteMove(int& whiteSelfRating)
 {
 	int blackSelfRating;
-	int minBlackSelfRating=999;
-	int maxRatio=-999;
+	int minBlackSelfRating=999999;
+	int maxRatio=-999999;
 	int ratio;
 
 	moveDepth++;
@@ -636,11 +663,11 @@ int whiteMove(int& whiteSelfRating)
 	int totalTakes=0;
 	int totalForce=0;
 	
-	//int minBlackRatio=9999;
-	//int bestWhiteMove=9999;
-	//int bestWhitePiece=9999;
+	//int minBlackRatio=9999999;
+	//int bestWhiteMove=9999999;
+	//int bestWhitePiece=9999999;
 
-	//ChessState maxChessState={0,0,0,0,-999,-1,false};
+	//ChessState maxChessState={0,0,0,0,-999999,-1,false};
 
 	for(int i=0; i<64; i++)	{
 		if (whitePieces[i]){
@@ -650,9 +677,13 @@ int whiteMove(int& whiteSelfRating)
 
 			
 			whatCanPieceDo(&piece,allBits,whiteBits,blackBits,&takeBits,&moveBits);
-			totalForce++;
+			if (piece.type==KING)
+				totalForce+=100;
+			else
+				totalForce++;
+			
 			totalMoves+=countBits(moveBits);
-			if (moveDepth<MAX_DEPTH)
+			if (moveDepth<MAX_DEPTH){
 				for(int move=0; move<64; move++){
 					if ((moveBits>>move)&1){
 						whitePieces[i]=0;
@@ -662,11 +693,16 @@ int whiteMove(int& whiteSelfRating)
 						showChess(whitePieces,blackPieces,out);
 #endif
 						ratio=blackMove(blackSelfRating);
-						if (ratio<999){	// ≈сли рейтинг вернулс€, запоминаем ход который дает максимум рейтинга
+						if (ratio<999999){	// ≈сли рейтинг вернулс€, запоминаем ход который дает максимум рейтинга
 							if (maxRatio<=ratio){
 								maxRatio =ratio;
-								bestMoves[moveDepth].from=i;
-								bestMoves[moveDepth].to=move;
+								//bestMoves[moveDepth].from=i;
+								//bestMoves[moveDepth].to=move;
+								if (moveDepth==1){
+									bestMove.from=i;
+									bestMove.to=move;
+								}
+
 							}
 						}
 						else {	// «апоминаем минимальный селф-рейтинг черных
@@ -688,9 +724,11 @@ int whiteMove(int& whiteSelfRating)
 
 					}
 				}
+			}
+
 			int countTakes=countBits(takeBits);
 			totalTakes+=countTakes;
-			if (countTakes)
+			if (countTakes && moveDepth<MAX_TAKE_DEPTH){
 				for (int take=0; take<64; take++){
 					if ((takeBits>>take)&1){
 						whitePieces[i]=0;
@@ -703,11 +741,16 @@ int whiteMove(int& whiteSelfRating)
 						showChess(whitePieces,blackPieces,out);
 #endif
 						ratio=blackMove(blackSelfRating);
-						if (ratio<999){
+						if (ratio<999999){
 							if (maxRatio<=ratio){
 								maxRatio =ratio;
-								bestMoves[moveDepth].from=i;
-								bestMoves[moveDepth].to=take;
+								//bestMoves[moveDepth].from=i;
+								//bestMoves[moveDepth].to=take;
+								if (moveDepth==1){
+									bestMove.from=i;
+									bestMove.to=take;
+								}
+
 							}
 						}
 						else {
@@ -726,6 +769,7 @@ int whiteMove(int& whiteSelfRating)
 						blackPieces[take]=blackDead;
 					}
 				}
+			}
 			//if (!maxChessState.completed){
 			//	if (maxChessState.whiteMoves==0)
 			//		maxChessState.whiteMoves+=countBits(moveBits);
@@ -740,14 +784,14 @@ int whiteMove(int& whiteSelfRating)
 	//	maxChessState.completed=true;
 	//}
 	whiteSelfRating=totalMoves+totalTakes+totalForce*10;
-	if (minBlackSelfRating!=999){
+	if (minBlackSelfRating!=999999){
 		ratio=whiteSelfRating-minBlackSelfRating;
 		if (maxRatio<=ratio)
 			maxRatio =ratio;
 	}
 
 	moveDepth--;
-	return maxRatio; // return -999 if not ready
+	return maxRatio; // return -999999 if not ready
 }
 
 void init2Kinights()
@@ -755,6 +799,17 @@ void init2Kinights()
 	whitePieces[4*8+4]=KNIGHT;
 	whitePieces[5*8+2]=ROOK;
 	blackPieces[5*8+5]=KNIGHT;
+}
+void init2Powns(){
+	whitePieces[1*8+0]=PAWN;
+	//whitePieces[2*8+1]=PAWN;
+	blackPieces[6*8+1]=QUEEN;
+
+}
+void init2Rooks()
+{
+	whitePieces[4*8+4]=ROOK;
+	blackPieces[5*8+2]=ROOK;
 }
 
 void int2Bishops2Rooks(){
@@ -768,9 +823,129 @@ void int2Bishops2Rooks(){
 	blackPieces[7*8+7]=BISHOP;
 }
 
+void initClassic(){
+	whitePieces[0*8+0]=ROOK;
+	whitePieces[0*8+1]=KNIGHT;
+	whitePieces[0*8+2]=BISHOP;
+	whitePieces[0*8+3]=KING;
+	whitePieces[0*8+4]=QUEEN;
+	whitePieces[0*8+5]=BISHOP;
+	whitePieces[0*8+6]=KNIGHT;
+	whitePieces[0*8+7]=ROOK;
+
+	whitePieces[1*8+0]=PAWN;
+	whitePieces[1*8+1]=PAWN;
+	whitePieces[1*8+2]=PAWN;
+	whitePieces[1*8+3]=PAWN;
+	whitePieces[1*8+4]=PAWN;
+	whitePieces[1*8+5]=PAWN;
+	whitePieces[1*8+6]=PAWN;
+	whitePieces[1*8+7]=PAWN;
+
+	blackPieces[7*8+0]=ROOK;
+	blackPieces[7*8+1]=KNIGHT;
+	blackPieces[7*8+2]=BISHOP;
+	blackPieces[7*8+3]=KING;
+	blackPieces[7*8+4]=QUEEN;
+	blackPieces[7*8+5]=BISHOP;
+	blackPieces[7*8+6]=KNIGHT;
+	blackPieces[7*8+7]=ROOK;
+
+	blackPieces[6*8+0]=PAWN;
+	blackPieces[6*8+1]=PAWN;
+	blackPieces[6*8+2]=PAWN;
+	blackPieces[6*8+3]=PAWN;
+	blackPieces[6*8+4]=PAWN;
+	blackPieces[6*8+5]=PAWN;
+	blackPieces[6*8+6]=PAWN;
+	blackPieces[6*8+7]=PAWN;
+
+
+}
+
+void initClassic1(){
+	whitePieces[0*8+0]=ROOK;
+	whitePieces[0*8+1]=KNIGHT;
+	whitePieces[4*8+6]=BISHOP;
+	whitePieces[0*8+3]=KING;
+	//whitePieces[2*8+5]=QUEEN;
+	whitePieces[0*8+5]=BISHOP;
+	whitePieces[2*8+5]=KNIGHT;
+	whitePieces[0*8+7]=ROOK;
+
+	whitePieces[1*8+0]=PAWN;
+	whitePieces[1*8+1]=PAWN;
+	whitePieces[1*8+2]=PAWN;
+	whitePieces[3*8+3]=PAWN;
+	whitePieces[1*8+4]=PAWN;
+	whitePieces[1*8+5]=PAWN;
+	whitePieces[1*8+6]=PAWN;
+	whitePieces[1*8+7]=PAWN;
+
+	blackPieces[7*8+0]=ROOK;
+	blackPieces[7*8+1]=KNIGHT;
+	blackPieces[3*8+4]=BISHOP;
+	blackPieces[7*8+3]=KING;
+	blackPieces[5*8+2]=QUEEN;
+	blackPieces[7*8+5]=BISHOP;
+	//blackPieces[3*8+4]=KNIGHT;
+	blackPieces[7*8+7]=ROOK;
+    
+	blackPieces[6*8+0]=PAWN;
+	blackPieces[6*8+1]=PAWN;
+	blackPieces[6*8+2]=PAWN;
+	blackPieces[4*8+3]=PAWN;
+	blackPieces[6*8+4]=PAWN;
+	blackPieces[6*8+5]=PAWN;
+	blackPieces[5*8+6]=PAWN;
+	blackPieces[6*8+7]=PAWN;
+
+
+}
+void initClassic2(){
+	whitePieces[0*8+0]=ROOK;
+	whitePieces[0*8+1]=KNIGHT;
+	whitePieces[2*8+4]=BISHOP;
+	whitePieces[0*8+3]=KING;
+	whitePieces[2*8+5]=QUEEN;
+	whitePieces[0*8+5]=BISHOP;
+	whitePieces[0*8+6]=KNIGHT;
+	whitePieces[0*8+7]=ROOK;
+
+	whitePieces[1*8+0]=PAWN;
+	whitePieces[1*8+1]=PAWN;
+	whitePieces[1*8+2]=PAWN;
+	whitePieces[3*8+3]=PAWN;
+	whitePieces[1*8+4]=PAWN;
+	whitePieces[1*8+5]=PAWN;
+	whitePieces[1*8+6]=PAWN;
+	whitePieces[1*8+7]=PAWN;
+
+	blackPieces[7*8+0]=ROOK;
+	blackPieces[7*8+1]=KNIGHT;
+	blackPieces[4*8+5]=BISHOP;
+	blackPieces[7*8+3]=KING;
+	blackPieces[5*8+2]=QUEEN;
+	blackPieces[7*8+5]=BISHOP;
+	blackPieces[3*8+4]=KNIGHT;
+	blackPieces[7*8+7]=ROOK;
+
+	blackPieces[6*8+0]=PAWN;
+	blackPieces[6*8+1]=PAWN;
+	blackPieces[6*8+2]=PAWN;
+	blackPieces[4*8+3]=PAWN;
+	blackPieces[6*8+4]=PAWN;
+	blackPieces[6*8+5]=PAWN;
+	blackPieces[5*8+6]=PAWN;
+	blackPieces[6*8+7]=PAWN;
+
+
+}
+
 int main()
 {
-	
+	printf("MAX_DEPTH=%d\n",MAX_DEPTH);
+	printf("MAX_TAKE_DEPTH=%d\n",MAX_TAKE_DEPTH);
 	initPureMovesBase(pureMovesBase);
 	initReplacementBase(replacementFwdBase, replacementInvBase);
 
@@ -797,12 +972,17 @@ int main()
 	blackPieces[7*8+0]=PAWN;
 */
 
-	init2Kinights();
+	//init2Kinights();
+	//init2Powns();
+	initClassic2();
+	//init2Rooks();
 
 	showChess(whitePieces,blackPieces,"0");
 	int whiteSelfRating;
 	int ratio=whiteMove(whiteSelfRating);
 	showChess(whitePieces,blackPieces,"0");
+	//showMoves(10);
+	printf ("ratio=%d\n",ratio);
 	showMoves(10);
 /*
 	chessbits blackBits;
