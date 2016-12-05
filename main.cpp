@@ -6,6 +6,8 @@
 #define MAX_DEPTH 4
 #define MAX_TAKE_DEPTH 12
 //#define SHOW 
+
+int ratioHistory[100];
 typedef unsigned long long chessbits;
 
 struct  Piece{
@@ -634,7 +636,7 @@ int  blackMove(int& blackSelfRating)
 	//	minChessState.ratio=minChessState.whiteForce-minChessState.blackForce;
 	//	minChessState.completed=true;
 	//}
-
+	ratioHistory[moveDepth]=ratio;
 	moveDepth--;
 	return minRatio;
 }
@@ -789,7 +791,7 @@ int whiteMove(int& whiteSelfRating)
 		if (maxRatio<=ratio)
 			maxRatio =ratio;
 	}
-
+	ratioHistory[moveDepth]=ratio;
 	moveDepth--;
 	return maxRatio; // return -999999 if not ready
 }
