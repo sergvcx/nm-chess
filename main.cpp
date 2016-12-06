@@ -4,7 +4,7 @@
 #include <crtdbg.h>
 
 #define MAX_DEPTH 4
-#define MAX_TAKE_DEPTH 12
+#define MAX_TAKE_DEPTH 11
 //#define SHOW 
 
 int ratioHistory[100];
@@ -499,16 +499,20 @@ int estimatePosition(chessbits takeBits, chessbits moveBits)
 int   blackPieces[64];//8][8];
 int	  whitePieces[64];//8][8];
 
-int whiteMove(int& );
+int whiteMove(int& , int);
 
 //ChessState chessState={0,0,0,0,-1,false};
 int moveDepth=0;
 int  blackMove(int& blackSelfRating, int diffForce)
 {
+	
 	int whiteSelfRating;
 	int minWhiteSelfRating=999999;
 	int minRatio=999999;
 	int ratio;
+
+	//if (diffForce > 20)
+	//	return 
 	//ChessState minChessState={0,0,0,0,999999,-1,false};
 	moveDepth++;
 	chessbits blackBits;
@@ -526,7 +530,7 @@ int  blackMove(int& blackSelfRating, int diffForce)
 	piece.color=BLACK;
 	int totalMoves=0;
 	int totalTakes=0;
-	//int totalForce=0;
+	int totalForce=0;
 	for(int i=0; i<64; i++)	{
 		if (blackPieces[i]){
 			piece.type=blackPieces[i];
@@ -535,10 +539,10 @@ int  blackMove(int& blackSelfRating, int diffForce)
 			chessbits moveBits;
 
 			whatCanPieceDo(&piece,allBits,whiteBits,blackBits,&takeBits,&moveBits);
-			//if (piece.type==KING)
-			//	totalForce+=100;
-			//else 
-			//	totalForce++;
+			if (piece.type==KING)
+				totalForce+=100;
+			else 
+				totalForce++;
 			totalMoves+=countBits(moveBits);
 			if (moveDepth<MAX_DEPTH){
 				for(int move=0; move<64; move++){
@@ -547,7 +551,7 @@ int  blackMove(int& blackSelfRating, int diffForce)
 						blackPieces[i]=0;
 						blackPieces[move]=piece.type;
 #ifdef SHOW						
-						sprintf(out,"black move.. %d",moveDepth);
+						sprintf(out,"black move.. %d %d",moveDepth,diffForce);
 						showChess(whitePieces,blackPieces,out);
 #endif
 						int ratio=whiteMove(whiteSelfRating,diffForce);
@@ -587,7 +591,7 @@ int  blackMove(int& blackSelfRating, int diffForce)
 						whitePieces[take]=0;
 						_ASSERTE(whiteDead);
 #ifdef SHOW
-						sprintf(out,"black take.. %d",moveDepth);
+						sprintf(out,"black take.. %d %d",moveDepth, diffForce);
 						showChess(whitePieces,blackPieces,out);
 #endif
 						int ratio=whiteMove(whiteSelfRating,diffForce);
@@ -693,7 +697,7 @@ int whiteMove(int& whiteSelfRating, int diffForce)
 						whitePieces[i]=0;
 						whitePieces[move]=piece.type;
 #ifdef SHOW
-						sprintf(out,"WHITE MOVE.. %d",moveDepth);
+						sprintf(out,"WHITE MOVE.. %d %d",moveDepth, diffForce);
 						showChess(whitePieces,blackPieces,out);
 #endif
 						ratio=blackMove(blackSelfRating,diffForce);
@@ -742,7 +746,7 @@ int whiteMove(int& whiteSelfRating, int diffForce)
 						blackPieces[take]=0;
 						_ASSERTE(blackDead);
 #ifdef SHOW
-						sprintf(out,"WHITE MOVE take.. %d",moveDepth);
+						sprintf(out,"WHITE MOVE take.. %d %d",moveDepth, diffForce);
 						showChess(whitePieces,blackPieces,out);
 #endif
 						ratio=blackMove(blackSelfRating,diffForce);
@@ -910,7 +914,7 @@ void initClassic1(){
 }
 void initClassic2(){
 	whitePieces[0*8+0]=ROOK;
-	whitePieces[0*8+1]=KNIGHT;
+	whitePieces[2*8+0]=KNIGHT;
 	whitePieces[2*8+4]=BISHOP;
 	whitePieces[0*8+3]=KING;
 	whitePieces[2*8+5]=QUEEN;
@@ -933,7 +937,7 @@ void initClassic2(){
 	blackPieces[7*8+3]=KING;
 	blackPieces[5*8+2]=QUEEN;
 	blackPieces[7*8+5]=BISHOP;
-	blackPieces[3*8+4]=KNIGHT;
+	blackPieces[2*8+2]=KNIGHT;
 	blackPieces[7*8+7]=ROOK;
 
 	blackPieces[6*8+0]=PAWN;
