@@ -1,15 +1,33 @@
 
 
-typedef  long long Bitmap;
-typedef  long long Beam;
-/*
+//typedef  long long Bitmap;
+//typedef  long long Beam;
+
 class Bitmap{
 	union{
-		long long: bits;
+		long long bits;
 		unsigned char byte[8];
 	} map;
 	
-}*/
+	Bitmap operator +(int c) {
+		return *this;
+	}
+	Bitmap operator -(int c) {
+		return *this;
+	}
+	Bitmap operator & (Bitmap& c) {
+
+		return *this;
+	}
+	Bitmap operator | (Bitmap& c) {
+
+		return *this;
+	}
+	Bitmap operator ~ () {
+
+		return *this;
+	}
+}
 //Bitmap whitePawns;
 //bitmap whitePawns;
 
