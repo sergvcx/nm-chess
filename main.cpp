@@ -917,7 +917,7 @@ void initClassic2(){
 	whitePieces[2*8+0]=KNIGHT;
 	whitePieces[2*8+4]=BISHOP;
 	whitePieces[0*8+3]=KING;
-	whitePieces[2*8+5]=QUEEN;
+	whitePieces[4*8+3]=QUEEN;
 	whitePieces[0*8+5]=BISHOP;
 	whitePieces[0*8+6]=KNIGHT;
 	whitePieces[0*8+7]=ROOK;
@@ -934,7 +934,7 @@ void initClassic2(){
 	blackPieces[7*8+0]=ROOK;
 	blackPieces[7*8+1]=KNIGHT;
 	blackPieces[4*8+5]=BISHOP;
-	blackPieces[7*8+3]=KING;
+	blackPieces[7*8+2]=KING;
 	blackPieces[2*8+2]=QUEEN;
 	blackPieces[7*8+5]=BISHOP;
 	//blackPieces[2*8+2]=KNIGHT;
@@ -943,7 +943,7 @@ void initClassic2(){
 	blackPieces[6*8+0]=PAWN;
 	blackPieces[6*8+1]=PAWN;
 	blackPieces[6*8+2]=PAWN;
-	blackPieces[4*8+3]=PAWN;
+	//blackPieces[4*8+3]=PAWN;
 	blackPieces[6*8+4]=PAWN;
 	blackPieces[6*8+5]=PAWN;
 	blackPieces[5*8+6]=PAWN;
